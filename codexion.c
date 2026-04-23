@@ -6,28 +6,54 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/20 23:26:45 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/22 17:23:56 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-long get_time_ms(void)
+void set_finished(t_simulation *sim)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+    for (size_t i = 0; i < sim->args.number_of_coders; i++)
+    {
+        pthread_mutex_lock(&sim->coders[i].state_mtx);
+        size_t count = sim->coders[i].compile_count;
+        pthread_mutex_unlock(&sim->coders[i].state_mtx);
+
+        if (count != sim->args.number_of_compiles_required)
+            return;
+    }
+
+    pthread_mutex_lock(&sim->is_finished_mtx);
+    sim->is_finished = 1;
+    pthread_mutex_unlock(&sim->is_finished_mtx);
 }
 
-void *coder_routine(void *arg)
+int is_finished(t_simulation *sim)
 {
+    int answer;
+
+    pthread_mutex_lock(&sim->is_finished_mtx);
+    answer = sim->is_finished;
+    pthread_mutex_unlock(&sim->is_finished_mtx);
+
+    return answer;
+}
+
+void *main_loop(void *arg)
+{
+    printf("gggggggggggggggggg\n");
     t_coder *c = (t_coder *)arg;
 
-    while (!c->sim->stop)
+    while (!is_finished(c->sim))
     {
-        printf("%d is thinking\n", c->coder_id);
-        // usleep(1000);
+        log_action(c, "is compiling");
+        c->compile_count++;
+        c->last_compile_time = get_time_ms();
+        usleep(c->sim->args.time_to_compile);
+        set_finished(c->sim);
     }
+    printf("eeeeeeeeeeeeeeeeee\n");
     return NULL;
 }
 
@@ -37,7 +63,7 @@ int main(int ac, char **av)
     {
         printf("Pass exactly these number of arguments, with the EXACTE ");
         printf("order, and DO NOT miss any:\n");
-        printf("number_of_coders time_to_burnout time_to_compile");
+        printf("number_of_coders time_to_burnout time_to_compile ");
         printf("time_to_debug time_to_refactor number_of_compiles_required");
         printf(" dongle_cooldown scheduler\n");
         return 1;
@@ -53,6 +79,14 @@ int main(int ac, char **av)
     t_coder *coders = malloc(sizeof(t_coder) * size);
     t_dongle *dongles = malloc(sizeof(t_dongle) * size);
 
+    t_simulation sim;
+
+    sim.args = data;
+    sim.coders = coders;
+    sim.dongles = dongles;
+    sim.is_finished = 0;
+    sim.start_time = get_time_ms();
+    
     for (int i = 0; i < size; i++)
     {
         dongles[i].dongle_id = i;
@@ -61,14 +95,6 @@ int main(int ac, char **av)
 
         pthread_mutex_init(&dongles[i].mtx, NULL);
     }
-
-    t_simulation sim;
-
-    sim.args = data;
-    sim.coders = coders;
-    sim.dongles = dongles;
-    sim.stop = 0;
-    sim.start_time = get_time_ms();
 
     pthread_mutex_init(&sim.log_mtx, NULL);
 
@@ -85,9 +111,17 @@ int main(int ac, char **av)
 
     for (int i = 0; i < size; i++)
     {
-        pthread_create(&coders[i].coder, NULL, coder_routine, &coders[i]);
+        printf("aaaaaaaaaaaaaa\n");
+        pthread_create(&coders[i].coder, NULL, main_loop, &coders[i]);
+        printf("bbbbbbbbbbbbbb\n");
     }
 
+    for (int i = 0; i < size; i++)
+    {
+        printf("cccccccccccccc\n");
+        pthread_join(coders[i].coder, NULL);
+        printf("dddddddddddddd\n");
+    }
     
     return 0;
 }
