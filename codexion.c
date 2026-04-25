@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/22 17:23:56 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/24 22:41:35 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -105,8 +105,17 @@ int main(int ac, char **av)
         coders[i].last_compile_time = 0;
         coders[i].sim = &sim;
 
-        coders[i].first_dongle = &dongles[i];
-        coders[i].second_dongle = &dongles[(i + 1) % size];
+        if (coders[i].coder_id % 2 == 0)
+        {
+            coders[i].first_dongle = &dongles[i];
+            coders[i].second_dongle = &dongles[(i + 1) % size];
+        }
+        else
+        {
+            coders[i].second_dongle = &dongles[(i + 1) % size];
+            coders[i].first_dongle = &dongles[i];
+        }
+        
     }
 
     for (int i = 0; i < size; i++)
