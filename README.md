@@ -724,13 +724,13 @@ This function spins until the starter finishes creating all threads:
 
 ```
 while (!sim->is_all_ready)
-    usleep(100);
+    i++;
 ```
 
 Important:
 
 * Threads are already running
-* They are just paused here until main says GO
+* They are just spining here until main says GO
 
 This guarantees **perfect synchronization**.
 

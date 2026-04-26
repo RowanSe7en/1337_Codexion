@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/24 22:41:35 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/26 20:14:05 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,26 +36,72 @@ int is_finished(t_simulation *sim)
     pthread_mutex_lock(&sim->is_finished_mtx);
     answer = sim->is_finished;
     pthread_mutex_unlock(&sim->is_finished_mtx);
-
     return answer;
+}
+
+int get_ready(t_simulation *sim)
+{
+    pthread_mutex_lock(&sim->is_ready_mtx);
+    int is_ready = sim->is_all_ready;
+    pthread_mutex_unlock(&sim->is_ready_mtx);
+    return is_ready;
+}
+
+void wait_all_threads_ready(t_simulation *sim)
+{
+    int i = 0;
+
+    while (!get_ready(sim))
+        i++;
 }
 
 void *main_loop(void *arg)
 {
-    printf("gggggggggggggggggg\n");
-    t_coder *c = (t_coder *)arg;
+    t_simulation *sim = (t_simulation *)arg;
+    wait_all_threads_ready(sim);
 
-    while (!is_finished(c->sim))
-    {
-        log_action(c, "is compiling");
-        c->compile_count++;
-        c->last_compile_time = get_time_ms();
-        usleep(c->sim->args.time_to_compile);
-        set_finished(c->sim);
-    }
-    printf("eeeeeeeeeeeeeeeeee\n");
+    // while (!is_finished(sim))
+    // {
+    //     log_action(c, "is compiling");
+    //     c->compile_count++;
+    //     c->last_compile_time = get_time_ms();
+    //     usleep(c->sim->args.time_to_compile);
+    //     set_finished(c->sim);
+    // }
+    // printf("eeeeeeeeeeeeeeeeee\n");
     return NULL;
 }
+
+void program_starter(t_simulation *sim)
+{
+    int num_of_coders = sim->args.number_of_coders;
+    printf("%d", num_of_coders);
+    if (num_of_coders == 0)
+        return ;
+    // else if (num_of_coders == 1)
+    //     ;
+    else
+    {
+        for (int i = 0; i < num_of_coders; i++)
+        {
+            pthread_t *coder_thr = &sim->coders[i].coder;
+            t_coder *coder = &sim->coders[i];
+
+            pthread_create(coder_thr, NULL, main_loop, sim);
+        }
+    }
+
+    sim->is_all_ready = 1;
+    sim->start_time = get_time_ms();
+
+    for (int i = 0; i < num_of_coders; i++)
+    {
+        pthread_t *coder_thr = &sim->coders[i].coder;
+        pthread_join(coder_thr, NULL);
+    }
+    
+}
+
 
 int main(int ac, char **av)
 {
@@ -85,7 +131,10 @@ int main(int ac, char **av)
     sim.coders = coders;
     sim.dongles = dongles;
     sim.is_finished = 0;
-    sim.start_time = get_time_ms();
+    sim.is_all_ready = 0;
+
+    pthread_mutex_init(&sim.is_ready_mtx, NULL);
+    pthread_mutex_init(&sim.log_mtx, NULL);
     
     for (int i = 0; i < size; i++)
     {
@@ -96,7 +145,6 @@ int main(int ac, char **av)
         pthread_mutex_init(&dongles[i].mtx, NULL);
     }
 
-    pthread_mutex_init(&sim.log_mtx, NULL);
 
     for (int i = 0; i < size; i++)
     {
@@ -118,19 +166,11 @@ int main(int ac, char **av)
         
     }
 
-    for (int i = 0; i < size; i++)
-    {
-        printf("aaaaaaaaaaaaaa\n");
-        pthread_create(&coders[i].coder, NULL, main_loop, &coders[i]);
-        printf("bbbbbbbbbbbbbb\n");
-    }
+    program_starter(&sim);
 
-    for (int i = 0; i < size; i++)
-    {
-        printf("cccccccccccccc\n");
-        pthread_join(coders[i].coder, NULL);
-        printf("dddddddddddddd\n");
-    }
+    
+
+
     
     return 0;
 }

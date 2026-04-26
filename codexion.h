@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/22 17:23:31 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/26 20:05:12 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,10 +65,12 @@ typedef struct s_simulation
     t_dongle    *dongles;
 
     long        start_time;
-    size_t         is_finished;
+    int         is_finished;
+    int         is_all_ready;
 
     pthread_mutex_t log_mtx;
     pthread_mutex_t is_finished_mtx;
+    pthread_mutex_t is_ready_mtx;
     
 } t_simulation;
 
