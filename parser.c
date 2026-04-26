@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   parsing.c                                          :+:      :+:    :+:   */
+/*   parser.c                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:33 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/19 23:19:21 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/26 23:16:38 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,7 +59,7 @@ t_arguments parser(int ac, char **av)
     arguments.number_of_coders = ft_atoi(av[1]);
     if (arguments.number_of_coders <= 0)
     {
-        printf("number_of_coders: %s\n", av[1]);
+        printf("Number of coders should be more then ZERO\n");
         return arguments;
     }
     arguments.time_to_burnout = ft_atoi(av[2]);

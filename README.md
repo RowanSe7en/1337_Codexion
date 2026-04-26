@@ -83,7 +83,6 @@ This makes the program:
 * modular
 * testable
 * thread-safe ready
-* aligned with 42/philosophers architecture
 
 ✔ This is a big milestone.
 
@@ -151,7 +150,6 @@ This line is extremely important:
 coders[i].second_dongle = &dongles[(i + 1) % size];
 ```
 
-This creates the **circular topology** of the dining philosophers problem.
 
 You have now successfully modeled the **resource graph**.
 
@@ -211,7 +209,6 @@ This is the **birth of concurrency** in your project.
 
 
 
-Perfect — now we are at the **classic dining-philosophers problem** (your coders + dongles).
 Yes: if every coder takes *left then right*, you will eventually get a **deadlock**.
 
 ---
@@ -793,138 +790,162 @@ This loop represents the coder life cycle.
 
 ## Step 8 — Coder life cycle order
 
-Inside the loop, each coder must execute:
+This is the most critical routine in the simulation.
 
-1. THINK
-2. TAKE DONGLES
-3. COMPILE
-4. RELEASE DONGLES
-5. DEBUG
-6. REFACTOR
-7. Repeat
+The compile phase is made of **3 big parts**:
 
-This is the heart of the project.
+1. Take the dongles
+2. Compile (update timestamps + counters)
+3. Release dongles
 
 ---
 
-## Step 9 — Precise sleep function
+# Step 1 — Function prototype
 
-You must create a precise sleep:
-
-```
-void precise_sleep(ms)
-```
-
-Because `usleep()` alone is inaccurate.
-
-Typical implementation:
+Create a function similar to:
 
 ```
-start = now
-while (now - start < duration)
-    usleep(200)
+static void compile(t_coder *c)
 ```
 
-Used for:
-
-* time_to_compile
-* time_to_debug
-* time_to_refactor
+This function receives a pointer to the coder struct.
 
 ---
 
-<!-- ## Step 10 — Compilation phase logic
+# Step 2 — Grab the two dongles (lock mutexes)
 
-When coder gets both dongles:
 
-1. log "has taken a dongle"
-2. log "has taken a dongle"
-3. log "is compiling"
-4. precise_sleep(time_to_compile)
-5. increase compile_count
-6. update last_compile_time
+Each coder already knows:
+
+* first_dongle
+* second_dongle
+
+### What to implement
+
+1. Lock first dongle mutex
+
+2. Print status: **"has taken a dongle"**
+
+3. Lock second dongle mutex
+
+4. Print status: **"has taken a dongle"**
+
+Pseudo-flow:
+
+```
+lock(first_dongle->mutex)
+print_log("has taken a dongle")
+
+lock(second_dongle->mutex)
+print_log("has taken a dongle")
+```
+
+This represents **taking both dongles required to compile**.
 
 ---
 
-## Step 11 — Release phase
+# Step 3 — Update last_compile_time (thread safe)
 
-After compiling:
+This value will be read by the **monitor thread** to detect timeout/starvation.
+So it must be protected with a **per-coder mutex**.
+
+### Add a mutex inside coder struct
+
+Each coder needs an internal mutex:
 
 ```
-unlock(first_dongle)
-unlock(second_dongle)
+pthread_mutex_t coder_mutex;
 ```
 
-Releasing is critical to unblock others.
+Initialize it during coder initialization.
 
 ---
 
-## Step 12 — Debug and Refactor phases
+### Now update last_compile_time safely
 
-After releasing:
+Inside `compile()`:
 
 ```
-log "is debugging"
-precise_sleep(time_to_debug)
-
-log "is refactoring"
-precise_sleep(time_to_refactor)
+lock(coder_mutex)
+coder->last_compile_time = get_time_ms()
+unlock(coder_mutex)
 ```
 
-Then loop repeats.
+This ensures the monitor reads a consistent timestamp.
 
 ---
 
-## Step 13 — Stop condition check
+# Step 4 — Increase compile counter
 
-Inside the main loop, constantly check:
+This value is **not shared with monitor**, only used by the coder itself.
 
-```
-if coder.compile_count == number_of_compiles_required
-    mark coder as finished
-```
-
-When **all coders finished**:
+So it does NOT need a mutex.
 
 ```
-sim->is_sim_ended = true;
+coder->compile_count++
 ```
-
-All threads exit their loops.
 
 ---
 
-## Step 14 — Thread exit
+# Step 5 — Print "is compiling"
 
-Routine returns → thread finishes → main thread unblocks from `pthread_join`.
+Order matters!
 
-Simulation ends cleanly.
+We update time and counter FIRST, then print:
+
+```
+print_log("is compiling")
+```
+
+This guarantees logs reflect real state.
 
 ---
 
-## Step 15 — Thread-safe logging
+# Step 6 — Precise sleep for compile duration
 
-Every print must be protected:
+Call your precise sleep function:
 
 ```
-pthread_mutex_lock(&sim->log_mtx);
-printf("%ld %d %s\n", timestamp, coder_id, action);
-pthread_mutex_unlock(&sim->log_mtx);
+precise_sleep(table->time_to_compile)
 ```
 
-Without this, logs mix and corrupt.
+This simulates the compile phase.
 
 ---
 
-# Final Mental Model
+# Step 7 — Check if coder finished required compiles
 
-Flow of the whole program:
+If the simulation has a **compile limit**:
 
 ```
-starter → create threads → release barrier
-threads → synchronized start → life loop
-life loop → take dongles → compile → release → debug → refactor
-stop condition → join threads → exit
+if (table->compile_limit > 0
+    AND coder->compile_count == table->compile_limit)
 ```
 
-This is the full architecture of Codexion. -->
+Then we mark coder as **finished**.
+
+This flag **must be protected by coder_mutex**, because the monitor will read it.
+
+```
+lock(coder_mutex)
+coder->is_full = true
+unlock(coder_mutex)
+```
+
+This is equivalent to philosopher becoming “full”.
+
+---
+
+# Step 8 — Release the dongles (unlock mutexes)
+
+VERY IMPORTANT: Always release in the end.
+
+```
+unlock(first_dongle->mutex)
+unlock(second_dongle->mutex)
+```
+
+This allows other coders to compile.
+
+---
+

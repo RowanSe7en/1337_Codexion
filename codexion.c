@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/26 20:14:05 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/27 00:00:03 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,9 +42,9 @@ int is_finished(t_simulation *sim)
 int get_ready(t_simulation *sim)
 {
     pthread_mutex_lock(&sim->is_ready_mtx);
-    int is_ready = sim->is_all_ready;
+    sim->is_all_ready = 1;
     pthread_mutex_unlock(&sim->is_ready_mtx);
-    return is_ready;
+    return sim->is_all_ready;
 }
 
 void wait_all_threads_ready(t_simulation *sim)
@@ -52,30 +52,57 @@ void wait_all_threads_ready(t_simulation *sim)
     int i = 0;
 
     while (!get_ready(sim))
+    {
+        pthread_mutex_lock(&sim->log_mtx);
+        // printf("%d\n", i);
         i++;
+        pthread_mutex_unlock(&sim->log_mtx);
+        usleep(100);
+    }
+}
+
+static void compile(t_coder *coder)
+{
+    pthread_mutex_lock(&coder->first_dongle->mtx);
+    log_action(coder, "has taken a dongle");
+    pthread_mutex_unlock(&coder->second_dongle->mtx);
+    log_action(coder, "has taken a dongle");
+
+
+
+    
+    pthread_mutex_unlock(&coder->first_dongle->mtx);
+    pthread_mutex_unlock(&coder->second_dongle->mtx);
 }
 
 void *main_loop(void *arg)
 {
-    t_simulation *sim = (t_simulation *)arg;
-    wait_all_threads_ready(sim);
+    // printf("f\n");
+    t_code_sim *code_sim = (t_code_sim *)arg;
+    // wait_all_threads_ready(code_sim->sim);
 
-    // while (!is_finished(sim))
+    // size_t required = code_sim->sim->args.number_of_compiles_required;
+    // while (!is_finished(code_sim->sim))
     // {
-    //     log_action(c, "is compiling");
-    //     c->compile_count++;
-    //     c->last_compile_time = get_time_ms();
-    //     usleep(c->sim->args.time_to_compile);
-    //     set_finished(c->sim);
+    //     if (code_sim->coder->compile_count == required)
+    //         break;
+
+    //     compile(code_sim->coder);
+        
+    //     // log_action(c, "is compiling");
+    //     // c->compile_count++;
+    //     // c->last_compile_time = get_time_ms();
+    //     // usleep(c->sim->args.time_to_compile);
+    //     // set_finished(c->sim);
     // }
-    // printf("eeeeeeeeeeeeeeeeee\n");
-    return NULL;
+    // free(code_sim);
+    // return NULL;
 }
 
 void program_starter(t_simulation *sim)
 {
     int num_of_coders = sim->args.number_of_coders;
-    printf("%d", num_of_coders);
+    printf("%dlllllllllllllll\n", num_of_coders);
     if (num_of_coders == 0)
         return ;
     // else if (num_of_coders == 1)
@@ -85,23 +112,40 @@ void program_starter(t_simulation *sim)
         for (int i = 0; i < num_of_coders; i++)
         {
             pthread_t *coder_thr = &sim->coders[i].coder;
-            t_coder *coder = &sim->coders[i];
+\
+            // t_code_sim *code_sim;
+            // code_sim->coder = coder_thr;
+            // code_sim->sim = sim;
 
-            pthread_create(coder_thr, NULL, main_loop, sim);
+
+            t_code_sim *code_sim = malloc(sizeof(t_code_sim));
+            code_sim->coder = &sim->coders[i];
+            code_sim->sim = sim;
+
+
+            // pthread_create(coder_thr, NULL, main_loop, code_sim);
         }
     }
+    // printf("ee %p\n", sim->coders[0].coder);
+    // printf("rr %d\n", sim->coders[0].coder_id);
+    // printf("tt %d\n", sim->coders[0].sim->coders[0].coder_id);
 
+    // pthread_mutex_lock(&sim->is_ready_mtx);
     sim->is_all_ready = 1;
+    // pthread_mutex_unlock(&sim->is_ready_mtx);
     sim->start_time = get_time_ms();
 
-    for (int i = 0; i < num_of_coders; i++)
-    {
-        pthread_t *coder_thr = &sim->coders[i].coder;
-        pthread_join(coder_thr, NULL);
-    }
+    // for (int i = 0; i < num_of_coders; i++)
+    // {
+    //     pthread_join(&sim->coders[i].coder, NULL);
+    // }
     
 }
 
+void t(t_simulation *sim)
+{
+    sim->args.number_of_coders = 666;
+}
 
 int main(int ac, char **av)
 {
@@ -134,8 +178,9 @@ int main(int ac, char **av)
     sim.is_all_ready = 0;
 
     pthread_mutex_init(&sim.is_ready_mtx, NULL);
+    pthread_mutex_init(&sim.is_finished_mtx, NULL);
     pthread_mutex_init(&sim.log_mtx, NULL);
-    
+
     for (int i = 0; i < size; i++)
     {
         dongles[i].dongle_id = i;
@@ -150,8 +195,9 @@ int main(int ac, char **av)
     {
         coders[i].coder_id = i + 1;
         coders[i].compile_count = 0;
-        coders[i].last_compile_time = 0;
+        // coders[i].last_compile_time = 0;
         coders[i].sim = &sim;
+        pthread_mutex_init(&coders[i].state_mtx, NULL);
 
         if (coders[i].coder_id % 2 == 0)
         {
@@ -165,6 +211,10 @@ int main(int ac, char **av)
         }
         
     }
+
+
+    // t(&sim);
+
 
     program_starter(&sim);
 

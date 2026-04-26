@@ -6,7 +6,7 @@
 #    By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/08 21:41:29 by brouane           #+#    #+#              #
-#    Updated: 2026/04/22 14:12:31 by brouane          ###   ########.fr        #
+#    Updated: 2026/04/26 23:11:57 by brouane          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -19,7 +19,7 @@ NAME    = codexion
 SRCS    = codexion.c \
           ft_atoi.c \
           parser_helper.c \
-          parsing.c \
+          parser.c \
 		  helpers.c
 
 OBJS    = $(SRCS:.c=.o)
