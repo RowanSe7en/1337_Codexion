@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 23:00:08 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/26 23:12:47 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/27 17:36:59 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,7 +42,9 @@ unsigned short dig_sign_checker(char *str)
 
 	i = 0;
     if (!str[i])
+	{
         return (1);
+	}
 	while (str[i])
 	{
         while (str[i] == 32)

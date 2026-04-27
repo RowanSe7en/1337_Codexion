@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/26 23:28:25 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/27 18:03:50 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,7 @@ typedef struct s_arguments
 
 typedef struct s_dongle
 {
-    size_t dongle_id;
+    int dongle_id;
     unsigned short is_available;
     pthread_mutex_t mtx;
 
@@ -48,7 +48,7 @@ typedef struct s_dongle
 typedef struct s_coder
 {
     pthread_t coder;
-    size_t coder_id;
+    int coder_id;
     unsigned long long compile_count;
     t_dongle *first_dongle;
     t_dongle *second_dongle;
