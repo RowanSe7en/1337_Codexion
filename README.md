@@ -903,13 +903,60 @@ This guarantees logs reflect real state.
 
 # Step 6 — Precise sleep for compile duration
 
-Call your precise sleep function:
+
+## Why `usleep()` is not reliable
+
+`usleep(100000)` means *“sleep AT LEAST 100ms”*, not exactly 100ms.
+
+Your program is not running alone. The OS scheduler decides when your thread wakes up. because of **Scheduler time slice**, **CPU load**, **Kernel timer resolution**,  **Context switching**
+
+So:
 
 ```
-precise_sleep(table->time_to_compile)
+usleep(100ms) → real sleep could be:
+100ms … 110ms … 130ms … sometimes 150ms
 ```
 
-This simulates the compile phase.
+For a normal app → OK
+For a **death timer simulation** → ❌ breaks logic.
+
+---
+
+## The correct strategy: "Smart sleep"
+
+Instead of one long sleep, we sleep **in small chunks** and repeatedly check the time.
+
+Concept:
+
+```
+target_time = now + duration
+
+while (current_time < target_time)
+    usleep(small_chunk)
+```
+
+This reduces overshoot drastically.
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ---
 

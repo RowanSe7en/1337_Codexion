@@ -6,7 +6,7 @@
 #    By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/08 21:41:29 by brouane           #+#    #+#              #
-#    Updated: 2026/04/27 19:12:44 by brouane          ###   ########.fr        #
+#    Updated: 2026/04/27 20:20:26 by brouane          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -33,10 +33,10 @@ $(NAME): $(OBJS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	$(RM) $(OBJS) $(OBJS_BONUS)
+	$(RM) $(OBJS)
 
 fclean: clean
-	$(RM) $(NAME) $(NAME_BONUS)
+	$(RM) $(NAME)
 
 re: fclean all
 

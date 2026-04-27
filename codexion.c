@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/27 20:16:17 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/27 22:47:59 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,14 +30,14 @@ unsigned short set_finished(t_simulation *sim)
     return sim->is_finished;
 }
 
-pthread_mutex_t d;
+// pthread_mutex_t d;
 
 unsigned short is_finished(t_simulation *sim)
 {
-    pthread_mutex_init(&d, NULL);
-    pthread_mutex_lock(&d);
+    // pthread_mutex_init(&d, NULL);
+    // pthread_mutex_lock(&d);
     unsigned short answer = set_finished(sim);
-    pthread_mutex_unlock(&d);
+    // pthread_mutex_unlock(&d);
 
     
     return answer;
@@ -51,70 +51,61 @@ unsigned short get_ready(t_simulation *sim)
     return answer;
 }
 
-void wait_all_threads_ready(t_simulation *sim)
+void sync_threads(t_simulation *sim)
 {
     int i = 0;
 
     while (!get_ready(sim))
-    {
-        // pthread_mutex_lock(&sim->log_mtx);
-        // printf("%d\n", i);
         i++;
-        // pthread_mutex_unlock(&sim->log_mtx);
-        // usleep(100);
-    }
 }
 
 static void compile(t_code_sim *code_sim)
 {
-    // pthread_mutex_lock(&code_sim->coder->first_dongle->mtx);
-    // log_action(code_sim->coder, "has taken a dongle");
-    // pthread_mutex_lock(&code_sim->coder->second_dongle->mtx);
-    // log_action(code_sim->coder, "has taken a dongle");
-
-    // usleep(code_sim->sim->args.time_to_compile);
+    pthread_mutex_lock(&code_sim->coder->first_dongle->mtx);
+    log_action(code_sim, "has taken a dongle");
+    pthread_mutex_lock(&code_sim->coder->second_dongle->mtx);
+    log_action(code_sim, "has taken a dongle");
     
-    // pthread_mutex_unlock(&code_sim->coder->first_dongle->mtx);
-    // pthread_mutex_unlock(&code_sim->coder->second_dongle->mtx);
+    log_action(code_sim, "is compiling");
+    
+    pthread_mutex_lock(&code_sim->coder->state_mtx);
+    code_sim->coder->compile_count++;
+    pthread_mutex_unlock(&code_sim->coder->state_mtx);
+    
+    pthread_mutex_unlock(&code_sim->coder->first_dongle->mtx);
+    pthread_mutex_unlock(&code_sim->coder->second_dongle->mtx);
 }
-pthread_mutex_t simm;
+
+static void debug(t_code_sim *code_sim)
+{ 
+    log_action(code_sim, "is debugging");
+    precise_sleep(code_sim->sim->args.time_to_debug, code_sim->sim);
+
+}
+
+static void refactor(t_code_sim *code_sim)
+{ 
+    log_action(code_sim, "is refactoring");
+    precise_sleep(code_sim->sim->args.time_to_refactor, code_sim->sim);
+}
 
 void *main_loop(void *arg)
 {
-    pthread_mutex_init(&simm, NULL);
     printf("main_loop\n");
     t_code_sim *code_sim = (t_code_sim *)arg;
 
-    wait_all_threads_ready(code_sim->sim);
+    sync_threads(code_sim->sim);
 
     unsigned long long required = code_sim->sim->args.number_of_compiles_required;
     while (!is_finished(code_sim->sim))
     {
         if (code_sim->coder->compile_count == required)
-        {
-            // printf("hereeeeeeeeeeeee %p\n", code_sim->coder->coder_id);
-            // usleep(100);
             break;
-            
-        }
-        else
-        {
-            pthread_mutex_lock(&simm);
-            code_sim->coder->compile_count++;
-            printf("%d compile_count %d\n", code_sim->coder->coder_id, code_sim->coder->compile_count);
-            // printf("here\n");
-            // usleep(10000000000);
 
-            pthread_mutex_unlock(&simm);
-        }
+        compile(code_sim);
+        debug(code_sim);
+        refactor(code_sim);
 
-        // compile(code_sim->coder);
-        
-        // log_action(c, "is compiling");
-        
-
-        // c->last_compile_time = get_time_ms();
-        // set_finished(c->sim);
     }
     free(code_sim);
     return NULL;
@@ -122,7 +113,7 @@ void *main_loop(void *arg)
 
 void program_starter(t_simulation *sim)
 {
-    unsigned long long start_time = get_time_ms();
+    // unsigned long long start_time = get_time_ms();
     printf("program_starter\n");
 
     int num_of_coders = sim->args.number_of_coders;
@@ -151,15 +142,12 @@ void program_starter(t_simulation *sim)
             pthread_create(&sim->coders[i].coder, NULL, main_loop, code_sim);
         }
     }
-    // printf("ee %p\n", sim->coders[0].coder);
-    // printf("rr %d\n", sim->coders[0].coder_id);
-    // printf("tt %d\n", sim->coders[0].sim->coders[0].coder_id);
 
     pthread_mutex_lock(&sim->is_ready_mtx);
     sim->is_all_ready = 1;
-    pthread_mutex_unlock(&sim->is_ready_mtx);
     sim->start_time = get_time_ms();
-    printf("ttttttttttttt %lld\n", sim->start_time - start_time);
+    pthread_mutex_unlock(&sim->is_ready_mtx);
+    // printf("ttttttttttttt %lld\n", sim->start_time - start_time);
 
     for (int i = 0; i < num_of_coders; i++)
     {
@@ -202,9 +190,9 @@ int main(int ac, char **av)
     sim.is_finished = 0;
     sim.is_all_ready = 0;
 
+    pthread_mutex_init(&sim.log_mtx, NULL);
     pthread_mutex_init(&sim.is_ready_mtx, NULL);
     pthread_mutex_init(&sim.is_finished_mtx, NULL);
-    pthread_mutex_init(&sim.log_mtx, NULL);
 
     for (int i = 0; i < size; i++)
     {
@@ -239,12 +227,6 @@ int main(int ac, char **av)
 
     program_starter(&sim);
 
-    
-
-    for (int i = 0; i < size; i++)
-    {
-        printf("coders[i].compile_count %d\n", coders[i].compile_count);
-    }
     
     return 0;
 }
