@@ -1,38 +1,21 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   dr_strange.c                                       :+:      :+:    :+:   */
+/*   freedom.c                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/04/19 22:18:27 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 12:34:03 by brouane          ###   ########.fr       */
+/*   Created: 2026/04/29 12:33:53 by brouane           #+#    #+#             */
+/*   Updated: 2026/04/29 12:33:54 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-int	ft_atoi(const char *nptr)
+int freedom(t_coder *coders, t_dongle *dongles)
 {
-	size_t	i;
-	long	result;
-	int		sign;
+    free(coders);
+    free(dongles);
 
-	i = 0;
-	result = 0;
-	sign = 1;
-	while (nptr[i] == '+' || nptr[i] == '-' || nptr[i] == 32)
-	{
-		if (nptr[i] == '-')
-			sign = -1;
-		i++;
-	}
-	while (nptr[i] >= '0' && nptr[i] <= '9')
-	{
-		result = result * 10 + (nptr[i] - '0');
-		if (result * sign > INT_MAX || result * sign < 0)
-			return (-1);
-		i++;
-	}
-	return ((int)result * sign);
+    return 1;
 }

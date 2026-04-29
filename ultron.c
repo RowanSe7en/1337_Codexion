@@ -1,38 +1,26 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   dr_strange.c                                       :+:      :+:    :+:   */
+/*   ultron.c                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/04/19 22:18:27 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 12:34:03 by brouane          ###   ########.fr       */
+/*   Created: 2026/04/29 12:33:28 by brouane           #+#    #+#             */
+/*   Updated: 2026/04/29 12:33:29 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-int	ft_atoi(const char *nptr)
+void destroy_them_all(t_simulation *sim)
 {
-	size_t	i;
-	long	result;
-	int		sign;
+    pthread_mutex_destroy(&sim->log_mtx);
+    pthread_mutex_destroy(&sim->is_ready_mtx);
+    pthread_mutex_destroy(&sim->is_finished_mtx);
 
-	i = 0;
-	result = 0;
-	sign = 1;
-	while (nptr[i] == '+' || nptr[i] == '-' || nptr[i] == 32)
-	{
-		if (nptr[i] == '-')
-			sign = -1;
-		i++;
-	}
-	while (nptr[i] >= '0' && nptr[i] <= '9')
-	{
-		result = result * 10 + (nptr[i] - '0');
-		if (result * sign > INT_MAX || result * sign < 0)
-			return (-1);
-		i++;
-	}
-	return ((int)result * sign);
+    for (int i = 0; i < sim->args.number_of_coders; i++)
+    {
+        pthread_mutex_destroy(&sim->dongles[i].mtx);
+        pthread_mutex_destroy(&sim->coders[i].state_mtx);
+    }
 }

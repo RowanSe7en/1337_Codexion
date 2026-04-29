@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 11:18:01 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/29 12:27:08 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,7 @@ unsigned short set_finished(t_simulation *sim)
     for (int i = 0; i < sim->args.number_of_coders; i++)
     {
         pthread_mutex_lock(&sim->coders[i].state_mtx);
-        unsigned long long count = sim->coders[i].compile_count;
+        unsigned long count = sim->coders[i].compile_count;
         pthread_mutex_unlock(&sim->coders[i].state_mtx);
 
         if (count != sim->args.number_of_compiles_required)
@@ -96,7 +96,7 @@ void *main_loop(void *arg)
 
     sync_threads(code_sim->sim);
 
-    unsigned long long required = code_sim->sim->args.number_of_compiles_required;
+    unsigned long required = code_sim->sim->args.number_of_compiles_required;
     while (!is_finished(code_sim->sim))
     {
         if (code_sim->coder->compile_count == required)
@@ -113,7 +113,7 @@ void *main_loop(void *arg)
 
 void program_starter(t_simulation *sim)
 {
-    // unsigned long long start_time = get_time_ms();
+    // unsigned long start_time = get_time_ms();
     printf("program_starter\n");
 
     int num_of_coders = sim->args.number_of_coders;
@@ -147,7 +147,7 @@ void program_starter(t_simulation *sim)
     sim->is_all_ready = 1;
     sim->start_time = get_time_ms();
     pthread_mutex_unlock(&sim->is_ready_mtx);
-    // printf("ttttttttttttt %lld\n", sim->start_time - start_time);
+    // printf("ttttttttttttt %ld\n", sim->start_time - start_time);
 
     for (int i = 0; i < num_of_coders; i++)
     {
@@ -172,9 +172,12 @@ int main(int ac, char **av)
 
     int size = data.number_of_coders;
 
-    t_coder *coders = malloc(sizeof(t_coder) * size);
-    t_dongle *dongles = malloc(sizeof(t_dongle) * size);
+    t_coder *coders = malloc_for_me(sizeof(t_coder) * size);
+    t_dongle *dongles = malloc_for_me(sizeof(t_dongle) * size);
 
+    if (!coders || !dongles)
+        return freedom(coders, dongles);
+    
     t_simulation sim;
 
     sim.args = data;
@@ -226,7 +229,8 @@ int main(int ac, char **av)
     }
     program_starter(&sim);
 
-    free(coders);
-    free(dongles);
+    destroy_them_all(&sim);
+
+    freedom(coders, dongles);
     return 0;
 }

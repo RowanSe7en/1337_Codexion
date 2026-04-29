@@ -6,12 +6,12 @@
 #    By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/08 21:41:29 by brouane           #+#    #+#              #
-#    Updated: 2026/04/29 11:32:46 by brouane          ###   ########.fr        #
+#    Updated: 2026/04/29 12:32:51 by brouane          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 CC      = cc
-CFLAGS  = -Wall #-Wextra # -Werror
+CFLAGS  = -Wall -Wextra  -Werror
 RM      = rm -f
 
 NAME    = codexion
@@ -21,7 +21,10 @@ SRCS    = codexion.c \
           groot.c \
           guardians_of_the_galaxy.c \
 		  time_variance_authority.c \
-		  he_who_remains.c
+		  he_who_remains.c \
+		  ultron.c \
+		  loki.c \
+		  freedom.c \
 
 OBJS    = $(SRCS:.c=.o)
 
