@@ -6,7 +6,7 @@
 #    By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/08 21:41:29 by brouane           #+#    #+#              #
-#    Updated: 2026/04/29 12:32:51 by brouane          ###   ########.fr        #
+#    Updated: 2026/04/29 20:54:25 by brouane          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -22,9 +22,10 @@ SRCS    = codexion.c \
           guardians_of_the_galaxy.c \
 		  time_variance_authority.c \
 		  he_who_remains.c \
-		  ultron.c \
+		  ultron_vision.c \
 		  loki.c \
 		  freedom.c \
+		  kang.c
 
 OBJS    = $(SRCS:.c=.o)
 

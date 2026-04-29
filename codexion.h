@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 12:29:56 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/29 23:23:10 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -98,6 +98,10 @@ int bye_bye();
 void *malloc_for_me(unsigned long long bytes);
 int freedom(t_coder *coders, t_dongle *dongles);
 void destroy_them_all(t_simulation *sim);
-
+void initiate_mutex(pthread_mutex_t *mutex, t_simulation *sim);
+void lock_mutex(pthread_mutex_t *mutex, t_simulation *sim);
+void unlock_mutex(pthread_mutex_t *mutex, t_simulation *sim);
+void thread_create(pthread_t *coder, void *func, t_code_sim *code_sim);
+void thread_join(pthread_t *coder, t_simulation *sim);
 
 #endif
