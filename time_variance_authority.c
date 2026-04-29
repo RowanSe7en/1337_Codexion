@@ -26,12 +26,3 @@ void precise_sleep(unsigned long long duration_ms, t_simulation *sim)
     }
 }
 
-void log_action(t_code_sim *code_sim, char *action)
-{
-    if (!code_sim->sim->is_finished)
-    {
-        unsigned long long timestamp = get_time_ms() - code_sim->sim->start_time;
-        // printf("get_time_ms() %lld - code_sim->coder->sim->start_time %lld\n", get_time_ms(), code_sim->sim->start_time);
-        printf("%lld %d %s\n", timestamp, code_sim->coder->coder_id, action);
-    }
-}

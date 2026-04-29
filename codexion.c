@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/27 22:47:59 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/29 11:18:01 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,11 +62,12 @@ void sync_threads(t_simulation *sim)
 static void compile(t_code_sim *code_sim)
 {
     pthread_mutex_lock(&code_sim->coder->first_dongle->mtx);
-    log_action(code_sim, "has taken a dongle");
+    log_action(code_sim, "has taken a first dongle");
     pthread_mutex_lock(&code_sim->coder->second_dongle->mtx);
-    log_action(code_sim, "has taken a dongle");
+    log_action(code_sim, "has taken a second dongle");
     
     log_action(code_sim, "is compiling");
+    precise_sleep(code_sim->sim->args.time_to_compile, code_sim->sim);
     
     pthread_mutex_lock(&code_sim->coder->state_mtx);
     code_sim->coder->compile_count++;
@@ -91,7 +92,6 @@ static void refactor(t_code_sim *code_sim)
 
 void *main_loop(void *arg)
 {
-    printf("main_loop\n");
     t_code_sim *code_sim = (t_code_sim *)arg;
 
     sync_threads(code_sim->sim);
@@ -162,15 +162,8 @@ void t(t_simulation *sim)
 
 int main(int ac, char **av)
 {
-    if (ac != 9)
-    {
-        printf("Pass exactly these number of arguments, with the EXACTE ");
-        printf("order, and DO NOT miss any:\n");
-        printf("number_of_coders time_to_burnout time_to_compile ");
-        printf("time_to_debug time_to_refactor number_of_compiles_required");
-        printf(" dongle_cooldown scheduler\n");
-        return 1;
-    }
+    if (ac != 9)        
+        return bye_bye();
 
     t_arguments data = parser(ac, av);
 
@@ -214,19 +207,26 @@ int main(int ac, char **av)
 
         if (coders[i].coder_id % 2 == 0)
         {
+            // printf("ggg %d\n", coders[i].coder_id);
             coders[i].first_dongle = &dongles[i];
             coders[i].second_dongle = &dongles[(i + 1) % size];
         }
         else
         {
-            coders[i].second_dongle = &dongles[(i + 1) % size];
-            coders[i].first_dongle = &dongles[i];
+            // printf("ddd %d\n", coders[i].coder_id);
+            coders[i].first_dongle = &dongles[(i + 1) % size];
+            coders[i].second_dongle = &dongles[i];
         }
         
     }
 
+    for (int i = 0; i < size; i++)
+    {
+        // printf("%d %d %d\n", coders[i].coder_id, coders[i].first_dongle->dongle_id, coders[i].second_dongle->dongle_id);
+    }
     program_starter(&sim);
 
-    
+    free(coders);
+    free(dongles);
     return 0;
 }

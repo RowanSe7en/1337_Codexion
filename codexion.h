@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/27 22:26:24 by brouane          ###   ########.fr       */
+/*   Updated: 2026/04/29 11:33:23 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -94,5 +94,6 @@ unsigned long long get_time_ms(void);
 void log_action(t_code_sim *code_sim, char *action);
 void precise_sleep(unsigned long long duration_ms, t_simulation *sim);
 unsigned short is_finished(t_simulation *sim);
+int bye_bye();
 
 #endif
