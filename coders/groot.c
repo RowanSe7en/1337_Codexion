@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 23:00:08 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 12:33:51 by brouane          ###   ########.fr       */
+/*   Updated: 2026/05/09 19:05:46 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,21 +22,21 @@ size_t	ft_strlen(const char *s)
 	return (len);
 }
 
-unsigned short ft_isdigit(char d)
+short ft_isdigit(char d)
 {
 	if (d >= 48 && 57 >= d)
 		return (1);
 	return (0);
 }
 
-unsigned short ft_issign(char s)
+short ft_issign(char s)
 {
 	if (s == 43 || s == 45)
 		return (1);
 	return (0);
 }
 
-unsigned short dig_sign_checker(char *str)
+short dig_sign_checker(char *str)
 {
 	int	i;
 

@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:32 by brouane           #+#    #+#             */
-/*   Updated: 2026/05/02 00:02:04 by brouane          ###   ########.fr       */
+/*   Updated: 2026/05/09 22:57:44 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,6 +17,23 @@ long long get_time_ms(void)
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return ((long long)tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+}
+
+long long get_time_us(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return ((long long)tv.tv_sec * 1000000LL) + tv.tv_usec;
+}
+
+long long ms_to_us(long long ms)
+{
+    return ms * 1000LL;
+}
+
+long long us_to_ms(long long us)
+{
+    return us / 1000LL;
 }
 
 void precise_sleep(long long duration_ms, t_simulation *sim)
@@ -34,7 +51,7 @@ void precise_sleep(long long duration_ms, t_simulation *sim)
         if (elapsed >= duration_ms)
             break;
 
-        usleep(200);
+        usleep(10);
     }
 }
 

@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:28 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 23:20:46 by brouane          ###   ########.fr       */
+/*   Updated: 2026/05/09 22:52:18 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,7 +32,7 @@ void destroy_them_all(t_simulation *sim)
 
     for (int i = 0; i < sim->args.number_of_coders; i++)
     {
-        pthread_mutex_destroy(&sim->dongles[i].mtx);
+        pthread_mutex_destroy(&sim->dongles[i].dongle_mtx);
         pthread_mutex_destroy(&sim->coders[i].state_mtx);
     }
 }

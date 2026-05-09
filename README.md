@@ -41,7 +41,7 @@ for (int i = 0; i < size; i++)
 {
     dongles[i].dongle_id = i;
     dongles[i].is_available = 1;
-    pthread_mutex_init(&dongles[i].mtx, NULL);
+    pthread_mutex_init(&dongles[i].dongle_mtx, NULL);
 }
 ```
 
@@ -51,7 +51,7 @@ for (int i = 0; i < size; i++)
 | -------------- | ---------------------------- |
 | `dongle_id`    | Unique identifier            |
 | `is_available` | Logical availability flag    |
-| `mtx`          | Mutex protecting this dongle |
+| `dongle_mtx`          | Mutex protecting this dongle |
 
 ✔ This is the **first real concurrency protection** in the project.
 
@@ -255,18 +255,18 @@ void take_dongles(t_coder *c)
 {
     if (c->coder_id % 2 == 0)
     {
-        pthread_mutex_lock(&c->second_dongle->mtx);
+        pthread_mutex_lock(&c->second_dongle->dongle_mtx);
         log_action(c, "has taken a dongle");
 
-        pthread_mutex_lock(&c->first_dongle->mtx);
+        pthread_mutex_lock(&c->first_dongle->dongle_mtx);
         log_action(c, "has taken a dongle");
     }
     else
     {
-        pthread_mutex_lock(&c->first_dongle->mtx);
+        pthread_mutex_lock(&c->first_dongle->dongle_mtx);
         log_action(c, "has taken a dongle");
 
-        pthread_mutex_lock(&c->second_dongle->mtx);
+        pthread_mutex_lock(&c->second_dongle->dongle_mtx);
         log_action(c, "has taken a dongle");
     }
 }
@@ -299,18 +299,18 @@ void take_dongles(t_coder *c)
     if (c->coder_id == c->sim->args.number_of_coders)
     {
         // last coder reversed
-        pthread_mutex_lock(&c->second_dongle->mtx);
+        pthread_mutex_lock(&c->second_dongle->dongle_mtx);
         log_action(c, "has taken a dongle");
 
-        pthread_mutex_lock(&c->first_dongle->mtx);
+        pthread_mutex_lock(&c->first_dongle->dongle_mtx);
         log_action(c, "has taken a dongle");
     }
     else
     {
-        pthread_mutex_lock(&c->first_dongle->mtx);
+        pthread_mutex_lock(&c->first_dongle->dongle_mtx);
         log_action(c, "has taken a dongle");
 
-        pthread_mutex_lock(&c->second_dongle->mtx);
+        pthread_mutex_lock(&c->second_dongle->dongle_mtx);
         log_action(c, "has taken a dongle");
     }
 }

@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:44 by brouane           #+#    #+#             */
-/*   Updated: 2026/05/02 00:03:03 by brouane          ###   ########.fr       */
+/*   Updated: 2026/05/09 22:56:31 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,7 +27,7 @@ void log_action(t_code_sim *code_sim, char *action)
 {
     if (!code_sim->sim->is_finished)
     {
-        long long timestamp = get_time_ms() - code_sim->sim->start_time;
+        long long timestamp = get_time_ms() - us_to_ms(code_sim->sim->start_time);
         // printf("get_time_ms() %lld - code_sim->coder->sim->start_time %lld\n", get_time_ms(), code_sim->sim->start_time);
         printf("%lld %d %s\n", timestamp, code_sim->coder->coder_id, action);
     }
