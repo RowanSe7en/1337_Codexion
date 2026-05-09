@@ -996,3 +996,254 @@ This allows other coders to compile.
 
 ---
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Perfect — you want the **implementation order**, not runtime order.
+
+Here is the clean logical checklist to implement **the_watcher** in Codexion.
+
+---
+
+# Step 1 — Add watcher thread to simulation struct
+
+You need a dedicated referee thread.
+
+Add inside `t_simulation`:
+
+```
+pthread_t watcher_thread;
+```
+
+---
+
+# Step 2 — Add shared state the watcher will control
+
+Watcher decides when simulation ends, so the state must live in the simulation:
+
+Add:
+
+```
+int is_finished;
+pthread_mutex_t state_mtx;
+int threads_running;
+```
+
+`state_mtx` protects:
+
+* is_finished
+* threads_running
+
+---
+
+# Step 3 — Add per-coder data that watcher must read
+
+Each coder must expose safe state for the watcher.
+
+Add inside `t_coder`:
+
+```
+long last_compile_time;
+int  compiles_done;
+int  is_full;
+pthread_mutex_t state_mtx;
+```
+
+Why?
+Watcher reads while coder writes → must be protected.
+
+---
+
+# Step 4 — Initialize coder mutexes
+
+During coder initialization:
+
+```
+pthread_mutex_init(&coder[i].state_mtx, NULL);
+coder[i].last_compile_time = 0;
+coder[i].compiles_done = 0;
+coder[i].is_full = 0;
+```
+
+---
+
+# Step 5 — Create the watcher thread
+
+In program starter, **after creating coder threads**:
+
+```
+pthread_create(&sim->watcher_thread, NULL, the_watcher, sim);
+```
+
+Important: create it **before joining threads**.
+
+---
+
+# Step 6 — Create “threads ready” synchronization
+
+Watcher must not start checking too early.
+
+Each coder must signal: *“I started running”*
+
+At start of `main_loop`:
+
+```
+lock(sim->state_mtx)
+sim->threads_running++
+unlock(sim->state_mtx)
+```
+
+---
+
+# Step 7 — Watcher waits until all threads started
+
+Beginning of `the_watcher()`:
+
+Loop until all coders are running.
+
+```
+while (1)
+{
+    lock(sim->state_mtx)
+    if (sim->threads_running == sim->args.number_of_coders)
+        break;
+    unlock(sim->state_mtx);
+    usleep(100);
+}
+unlock(sim->state_mtx);
+```
+
+Now the simulation is truly running.
+
+---
+
+# Step 8 — Create watcher main loop
+
+Watcher continuously checks the system.
+
+```
+while (!simulation_finished)
+{
+    check_if_coder_burned_out();
+    check_if_all_compiles_done();
+}
+```
+
+These will be helper functions.
+
+---
+
+# Step 9 — Create function: check_if_coder_burned_out()
+
+For each coder:
+
+1. Lock coder state
+2. Read `last_compile_time`
+3. Unlock coder state
+4. Compare with `time_to_burnout`
+
+If burnout detected:
+
+```
+lock(sim->state_mtx)
+sim->is_finished = 1
+unlock(sim->state_mtx)
+
+print burnout log
+return
+```
+
+Watcher stops simulation.
+
+---
+
+# Step 10 — Create function: check_if_all_compiles_done()
+
+Count how many coders reached required compiles.
+
+For each coder:
+
+```
+lock(coder->state_mtx)
+if compiles_done == required
+    count++
+unlock
+```
+
+If count == number_of_coders:
+
+```
+lock(sim->state_mtx)
+sim->is_finished = 1
+unlock
+```
+
+Simulation successful ending.
+
+---
+
+# Step 11 — Update coder during compile
+
+Watcher depends on this data being correct.
+
+When coder **starts compiling**:
+
+```
+lock(coder->state_mtx)
+coder->last_compile_time = get_time_ms();
+coder->compiles_done++;
+unlock(coder->state_mtx)
+```
+
+If coder reaches required compiles:
+
+```
+coder->is_full = 1
+```
+
+---
+
+# Step 12 — Join watcher thread
+
+After joining coder threads in main:
+
+```
+pthread_join(sim->watcher_thread, NULL);
+```
+
+---
+
+# Final mental model
+
+Coder threads → produce state
+Watcher thread → observes state and ends simulation safely
+
+Workers never decide death or finish. Only the watcher does.

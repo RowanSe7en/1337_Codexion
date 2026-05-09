@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 23:53:35 by brouane          ###   ########.fr       */
+/*   Updated: 2026/05/09 17:12:38 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,7 @@ unsigned short set_finished(t_simulation *sim)
     for (int i = 0; i < sim->args.number_of_coders; i++)
     {
         pthread_mutex_lock(&sim->coders[i].state_mtx);
-        unsigned long count = sim->coders[i].compile_count;
+        long long count = sim->coders[i].compile_count;
         pthread_mutex_unlock(&sim->coders[i].state_mtx);
 
         if (count != sim->args.number_of_compiles_required)
@@ -43,6 +43,15 @@ unsigned short get_ready(t_simulation *sim)
     return answer;
 }
 
+void fifo(t_code_sim *code_sim)
+{
+    static int x = 0;
+    code_sim->sim->fifo_array[x] = *code_sim;
+    code_sim->coder->is_regestered = 1;
+    x++;
+    printf("eeeeeeeeeeeeeeeeeee%d\n", x);
+}
+
 void sync_threads(t_simulation *sim)
 {
     int i = 0;
@@ -51,14 +60,24 @@ void sync_threads(t_simulation *sim)
         i++;
 }
 
+// void get_order(t_code_sim *code_sim)
+// {
+    
+// }
+
 void compile(t_code_sim *code_sim)
 {
+
+    // get_order(code_sim);
+    
     pthread_mutex_lock(&code_sim->coder->first_dongle->mtx);
     log_action(code_sim, "has taken a first dongle");
     pthread_mutex_lock(&code_sim->coder->second_dongle->mtx);
     log_action(code_sim, "has taken a second dongle");
     
     log_action(code_sim, "is compiling");
+    if (!code_sim->coder->is_regestered)
+        fifo(code_sim);
     precise_sleep(code_sim->sim->args.time_to_compile, code_sim->sim);
     
     pthread_mutex_lock(&code_sim->coder->state_mtx);
@@ -66,7 +85,9 @@ void compile(t_code_sim *code_sim)
     code_sim->coder->compile_count++;
     pthread_mutex_unlock(&code_sim->coder->state_mtx);
     
+    log_action(code_sim, "has droped a first dongle");
     pthread_mutex_unlock(&code_sim->coder->first_dongle->mtx);
+    log_action(code_sim, "has droped a second dongle");
     pthread_mutex_unlock(&code_sim->coder->second_dongle->mtx);
 }
 
@@ -89,17 +110,92 @@ void *main_loop(void *arg)
 
     sync_threads(code_sim->sim);
 
-    unsigned long required = code_sim->sim->args.number_of_compiles_required;
+    long long required = code_sim->sim->args.number_of_compiles_required;
     while (!is_finished(code_sim->sim))
     {
-        if (code_sim->coder->compile_count == required)
-            break;
+        // i think this mutex is not neccessery
+        pthread_mutex_lock(&code_sim->coder->state_mtx);
+        long long compile_count = code_sim->coder->compile_count;
+        pthread_mutex_unlock(&code_sim->coder->state_mtx);
 
+        if (compile_count == required)
+            break;
+        
         compile(code_sim);
         debug(code_sim);
         refactor(code_sim);
 
     }
+    return NULL;
+}
+
+long long x = 0;
+
+void check_if_coder_burned_out(t_simulation *sim)
+{
+
+    for (int i = 0; i < sim->args.number_of_coders; i++)
+    {
+        pthread_mutex_lock(&sim->coders[i].state_mtx);
+        long long last_compile_time = sim->coders[i].last_compile_time;
+        pthread_mutex_unlock(&sim->coders[i].state_mtx);
+
+        long long now = get_time_ms();
+        long long time = now - last_compile_time;
+        // printf("---------------------------------time: %lld\n", now);
+        // printf("---------------------------------time: %lld\n", last_compile_time);
+        // printf("---------------------------------time: %lld\n", time);
+        if (time >= sim->args.time_to_burnout)
+        {
+            printf("------------------: %d\n", sim->coders[i].coder_id);
+            pthread_mutex_lock(&sim->log_mtx);
+            x++;
+            pthread_mutex_unlock(&sim->log_mtx);
+            /* code */
+
+        }
+        
+
+        // if (time >= 0)
+        // {
+        //     pthread_mutex_lock(&sim->is_finished_mtx);
+        //     sim->is_finished = 1;
+        //     pthread_mutex_unlock(&sim->is_finished_mtx);
+        // }
+    }
+}
+
+void check_if_all_compiles_done(t_simulation *sim)
+{
+    for (int i = 0; i < sim->args.number_of_coders; i++)
+    {
+        pthread_mutex_lock(&sim->coders[i].state_mtx);
+        long long compile_count = sim->coders[i].compile_count;
+        pthread_mutex_unlock(&sim->coders[i].state_mtx);
+
+        if (compile_count != sim->args.number_of_compiles_required)
+            return;
+    }
+    pthread_mutex_lock(&sim->is_finished_mtx);
+    sim->is_finished = 1;
+    pthread_mutex_unlock(&sim->is_finished_mtx);
+    printf("done\n");
+}
+
+void *the_watcher(void *arg)
+{
+    t_simulation *sim = (t_simulation *)arg;
+    printf("ddddddddddd %p\n",sim);
+
+
+    sync_threads(sim);
+
+    while (!is_finished(sim))
+    {
+        check_if_coder_burned_out(sim);
+        check_if_all_compiles_done(sim);
+    }
+    
     return NULL;
 }
 
@@ -126,6 +222,7 @@ void program_starter(t_simulation *sim)
 
             thread_create(&sim->coders[i].coder, main_loop, &codes_sims[i]);
         }
+        pthread_create(&sim->watcher_thread, NULL, the_watcher, sim);
     }
 
     lock_mutex(&sim->is_ready_mtx, sim);
@@ -133,9 +230,14 @@ void program_starter(t_simulation *sim)
     sim->start_time = get_time_ms();
     unlock_mutex(&sim->is_ready_mtx, sim);
 
+    for (int i = 0; i < sim->args.number_of_coders; i++)
+    {
+        sim->coders[i].last_compile_time = get_time_ms();
+    }
+
     for (int i = 0; i < num_of_coders; i++)
         thread_join(&sim->coders[i].coder, sim);
-
+    pthread_join(sim->watcher_thread, NULL);
     free(codes_sims);
 }
 
@@ -164,6 +266,7 @@ int main(int ac, char **av)
     sim.dongles = dongles;
     sim.is_finished = 0;
     sim.is_all_ready = 0;
+    sim.fifo_array = malloc_for_me(sizeof(t_code_sim) * size);
 
     initiate_mutex(&sim.log_mtx, &sim);
     initiate_mutex(&sim.is_ready_mtx, &sim);
@@ -184,6 +287,7 @@ int main(int ac, char **av)
         coders[i].coder_id = i + 1;
         coders[i].compile_count = 0;
         coders[i].last_compile_time = 0;
+        coders[i].is_regestered = 0;
         coders[i].sim = &sim;
         initiate_mutex(&coders[i].state_mtx, &sim);
 
@@ -201,6 +305,14 @@ int main(int ac, char **av)
     }
 
     program_starter(&sim);
+
+    for (size_t i = 0; i < size; i++)
+    {
+        printf("gggggggggggggggggg %d\n", sim.fifo_array[i].coder->coder_id);
+        printf("tttttttttttttttttt %d\n", sim.fifo_array[i].coder->compile_count);
+    }
+    
+
     destroy_them_all(&sim);
     freedom(coders, dongles);
 

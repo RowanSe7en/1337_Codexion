@@ -6,13 +6,13 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:40 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 12:33:41 by brouane          ###   ########.fr       */
+/*   Updated: 2026/05/02 00:02:35 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-void *malloc_for_me(unsigned long long bytes)
+void *malloc_for_me(long long bytes)
 {
     void *take_this;
 

@@ -1,5 +1,4 @@
-codexion
-a.out
+coedrs/codexion
+coedrs/*.o
 test*
-te*
 *.o
