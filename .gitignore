@@ -1,4 +1,5 @@
 coedrs/codexion
 coedrs/*.o
+coedrs/*.py
 test*
 *.o

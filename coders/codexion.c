@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/05/09 23:35:51 by brouane          ###   ########.fr       */
+/*   Updated: 2026/05/10 22:00:05 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -101,11 +101,14 @@ void edf(t_code_sim *code_sim)
     long long time_to_burnout = ms_to_us(code_sim->sim->args.time_to_burnout);
     
     order[*counter] = last_compile_time + time_to_burnout;
-
-    printf("last_compile_time=%lld | time_to_burnout=%lld | total=%lld\n",
+    long long timestamp = get_time_ms() - us_to_ms(code_sim->sim->start_time);
+    printf("at %lld coder=%d\nlast_compile_time=%lld\ntime_to_burnout=  %lld\ntotal=            %lld\n",
+        timestamp,
+        code_sim->coder->coder_id,
        last_compile_time,
        time_to_burnout,
-       order[*counter]);
+       order[*counter]
+);
 
     (*counter)++;
 
@@ -176,37 +179,37 @@ void compile(t_code_sim *code_sim)
     pthread_mutex_unlock(&code_sim->coder->first_dongle->reset_mtx);
     
 
+    log_action(code_sim, "has tried to take the first dongle");
     pthread_mutex_lock(&code_sim->coder->first_dongle->dongle_mtx);
     log_action(code_sim, "has taken a first dongle");
     pthread_mutex_lock(&code_sim->coder->second_dongle->dongle_mtx);
     log_action(code_sim, "has taken a second dongle");
     
-    // log_action(code_sim, "is compiling");
-    // if (!code_sim->coder->is_regestered)
-    //     fifo(code_sim);
+    log_action(code_sim, "is compiling");
+
     precise_sleep(code_sim->sim->args.time_to_compile, code_sim->sim);
     
     pthread_mutex_lock(&code_sim->coder->state_mtx);
-    code_sim->coder->last_compile_time = get_time_us();
+    code_sim->coder->last_compile_time = get_time_us() - code_sim->sim->start_time;
     code_sim->coder->compile_count++;
     pthread_mutex_unlock(&code_sim->coder->state_mtx);
     
-    // log_action(code_sim, "has droped a first dongle");
+    log_action(code_sim, "has droped a first dongle");
     pthread_mutex_unlock(&code_sim->coder->first_dongle->dongle_mtx);
-    // log_action(code_sim, "has droped a second dongle");
+    log_action(code_sim, "has droped a second dongle");
     pthread_mutex_unlock(&code_sim->coder->second_dongle->dongle_mtx);
 }
 
 void debug(t_code_sim *code_sim)
 { 
-    // log_action(code_sim, "is debugging");
+    log_action(code_sim, "is debugging");
     precise_sleep(code_sim->sim->args.time_to_debug, code_sim->sim);
 
 }
 
 void refactor(t_code_sim *code_sim)
 { 
-    // log_action(code_sim, "is refactoring");
+    log_action(code_sim, "is refactoring");
     precise_sleep(code_sim->sim->args.time_to_refactor, code_sim->sim);
 }
 
@@ -247,10 +250,10 @@ short check_if_coder_burned_out(t_simulation *sim)
         long long last_compile_time = sim->coders[i].last_compile_time;
         pthread_mutex_unlock(&sim->coders[i].state_mtx);
 
-        long long now = get_time_us();
-        long long time = now - last_compile_time;
+        // long long now = get_time_us();
+        // long long time = now - last_compile_time;
 
-        if (time >= ms_to_us(sim->args.time_to_burnout))
+        if (last_compile_time >= ms_to_us(sim->args.time_to_burnout))
             return set_finished(sim, 1);
     }
     return 0;
@@ -324,15 +327,12 @@ void program_starter(t_simulation *sim)
     sim->start_time = get_time_us();
     unlock_mutex(&sim->is_ready_mtx, sim);
 
-    for (int i = 0; i < sim->args.number_of_coders; i++)
-    {
-        sim->coders[i].last_compile_time = get_time_us();
-    }
+    // for (int i = 0; i < sim->args.number_of_coders; i++)
+    //     sim->coders[i].last_compile_time = sim->start_time;
 
     for (int i = 0; i < num_of_coders; i++)
         thread_join(&sim->coders[i].coder, sim);
     pthread_join(sim->watcher_thread, NULL);
-    exit(0);
 
     free(codes_sims);
 }
@@ -373,7 +373,6 @@ int main(int ac, char **av)
         dongles[i].dongle_id = i + 1;
         dongles[i].is_available = 1;
         dongles[i].can_reset = 0;
-        // sim.order_array[i].counter = 0;
         dongles[i].scheduler.counter = 0;
         
         initiate_mutex(&dongles[i].dongle_mtx, &sim);
@@ -386,8 +385,7 @@ int main(int ac, char **av)
     {
         coders[i].coder_id = i + 1;
         coders[i].compile_count = 0;
-        coders[i].last_compile_time = get_time_us();
-        // coders[i].is_regestered = 0;
+        coders[i].last_compile_time = 0;
         coders[i].sim = &sim;
         initiate_mutex(&coders[i].state_mtx, &sim);
 
