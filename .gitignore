@@ -1,5 +1,5 @@
-coedrs/codexion
-coedrs/*.o
-coedrs/*.py
+coders/codexion
+coders/*.o
+coders/*.py
 test*
 *.o

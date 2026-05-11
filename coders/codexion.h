@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/05/09 22:57:01 by brouane          ###   ########.fr       */
+/*   Updated: 2026/05/10 23:16:43 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,8 +52,10 @@ typedef struct s_dongle
     int dongle_id;
     short is_available;
     short can_reset;
+    short coders_passed;
     pthread_mutex_t reset_mtx;
     pthread_mutex_t dongle_mtx;
+    pthread_mutex_t coders_passed_mtx;
     t_scheduler scheduler;
 
 } t_dongle;
@@ -81,6 +83,7 @@ typedef struct s_simulation
     long long   start_time;
     short  is_finished;
     short  is_all_ready;
+    short  is_edf;
     t_scheduler *order_array;
 
     pthread_mutex_t log_mtx;
