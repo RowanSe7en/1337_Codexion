@@ -1247,3 +1247,79 @@ Coder threads → produce state
 Watcher thread → observes state and ends simulation safely
 
 Workers never decide death or finish. Only the watcher does.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## First race decides the permanent order
+
+When the simulation starts, everyone tries to grab dongles at the same time. The OS scheduler breaks the symmetry and **someone wins first**. That single win creates a permanent phase shift between neighbours.
+
+Example pattern (compile = 200ms, full cycle = 600ms):
+
+```
+Coder A wins first → starts compiling at 0ms
+Coder B loses → starts compiling at 200ms
+```
+
+After that, their compile windows repeat forever:
+
+```
+A compiles at: 0, 600, 1200, 1800…
+B compiles at: 200, 800, 1400, 2000…
+```
+
+Because the cycle is periodic, the 200ms offset never disappears.
+This creates a **pipeline** where neighbours naturally fall into different time slots and stop colliding.
+
+You can see the wave pattern in logs:
+
+```
+wave 1 → C3 C5 compile
+wave 2 → C2 C4 C6 compile
+wave 3 → C1 compile
+repeat…
+```
+
+After the first round, the system stabilizes.
+
+---
+
+## A coder waits at most two phases for dongles
+
+A coder can fail to grab dongles in only two situations:
+
+1. Right neighbour is currently compiling (holds dongles)
+2. After release, left neighbour grabs them first
+
+Each compile phase lasts 200ms, so worst-case waiting is:
+
+```
+lose to right neighbour → wait 200ms
+lose to left neighbour  → wait 200ms
+third attempt → both neighbours are debug/refactor → dongles free
+```
+
+So the maximum wait to compile is **400ms**.
+
+Since burnout is **1000ms**, the system guarantees progress:
+
+```
+max wait 400ms < burnout 1000ms
+```
+
+This explains why starvation does not happen and why the simulation quickly becomes smooth and predictable.

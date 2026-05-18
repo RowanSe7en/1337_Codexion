@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/05/10 23:16:43 by brouane          ###   ########.fr       */
+/*   Updated: 2026/05/15 19:28:49 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,9 +53,12 @@ typedef struct s_dongle
     short is_available;
     short can_reset;
     short coders_passed;
+    long long last_used_time;
+
     pthread_mutex_t reset_mtx;
     pthread_mutex_t dongle_mtx;
-    pthread_mutex_t coders_passed_mtx;
+    pthread_mutex_t used_time_mtx;
+    pthread_mutex_t passed_mtx;
     t_scheduler scheduler;
 
 } t_dongle;
@@ -111,7 +114,7 @@ long long get_time_ms(void);
 long long get_time_us(void);
 long long ms_to_us(long long ms);
 long long us_to_ms(long long us);
-void log_action(t_code_sim *code_sim, char *action);
+void log_action(t_simulation *sim, t_coder *coder, char *action);
 void precise_sleep(long long duration_ms, t_simulation *sim);
 short is_finished(t_simulation *sim);
 int bye_bye();

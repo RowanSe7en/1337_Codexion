@@ -6,7 +6,7 @@
 #    By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/08 21:41:29 by brouane           #+#    #+#              #
-#    Updated: 2026/05/09 21:50:08 by brouane          ###   ########.fr        #
+#    Updated: 2026/05/15 17:01:39 by brouane          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -33,7 +33,7 @@ all: $(NAME)
 
 it: all
 	clear
-	./codexion 6 1000 200 200 200 3 100 edf
+	./codexion 6 2000 200 200 200 3 400 edf
 
 $(NAME): $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $(NAME)

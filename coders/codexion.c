@@ -6,11 +6,41 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/05/11 23:17:47 by brouane          ###   ########.fr       */
+/*   Updated: 2026/05/15 21:54:13 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
+
+long long get_last_compile_time(t_coder *coder)
+{
+    pthread_mutex_lock(&coder->state_mtx);
+    long long answer = coder->last_compile_time;
+    pthread_mutex_unlock(&coder->state_mtx);
+    return answer;
+}
+
+long long get_last_used_time(t_dongle *dongle)
+{
+    pthread_mutex_lock(&dongle->used_time_mtx);
+    long long answer = dongle->last_used_time;
+    pthread_mutex_unlock(&dongle->used_time_mtx);
+    return answer;
+}
+
+void set_last_compile_time(t_coder *coder, long long now)
+{
+    pthread_mutex_lock(&coder->state_mtx);
+    coder->last_compile_time = now;
+    pthread_mutex_unlock(&coder->state_mtx);
+}
+
+void set_last_used_time(t_dongle *dongle, long long time)
+{
+    pthread_mutex_lock(&dongle->used_time_mtx);
+    dongle->last_used_time = time;
+    pthread_mutex_unlock(&dongle->used_time_mtx);
+}
 
 short set_finished(t_simulation *sim, short finish_it)
 {
@@ -66,9 +96,9 @@ int get_counter(t_dongle *dongle)
 int get_passed(t_dongle *dongle)
 {
     int answer;
-    pthread_mutex_lock(&dongle->coders_passed_mtx);
+    pthread_mutex_lock(&dongle->passed_mtx);
     answer = dongle->coders_passed;
-    pthread_mutex_unlock(&dongle->coders_passed_mtx);
+    pthread_mutex_unlock(&dongle->passed_mtx);
     return answer;
 }
 
@@ -93,86 +123,6 @@ void get_order(t_code_sim *code_sim)
     pthread_mutex_unlock(&code_sim->coder->first_dongle->scheduler.counter_mtx);
 }
 
-// void edf(t_code_sim *code_sim)
-// {
-//     pthread_mutex_lock(&code_sim->coder->first_dongle->scheduler.counter_mtx);
-
-//     int *counter;
-//     long long *order;
-
-//     counter = &code_sim->coder->first_dongle->scheduler.counter;
-//     order = code_sim->coder->first_dongle->scheduler.order;
-    
-//     pthread_mutex_lock(&code_sim->coder->state_mtx);
-//     long long last_compile_time = code_sim->coder->last_compile_time;
-//     pthread_mutex_unlock(&code_sim->coder->state_mtx);
-    
-//     long long time_to_burnout = ms_to_us(code_sim->sim->args.time_to_burnout);
-    
-//     order[*counter] = last_compile_time + time_to_burnout;
-//     long long timestamp = get_time_ms() - us_to_ms(code_sim->sim->start_time);
-//     printf("at %lld coder=%d\nlast_compile_time=%lld\ntime_to_burnout=  %lld\ntotal=            %lld\n",
-//         timestamp,
-//         code_sim->coder->coder_id,
-//        last_compile_time,
-//        time_to_burnout,
-//        order[*counter]
-// );
-
-//     (*counter)++;
-
-//     int x = *counter - 1;
-
-//     printf("----------------------------------------------------------------------------EDF: coder_id=%d | time[%d]=%lld | dongle_id=%d | counter=%d\n",
-//        code_sim->coder->coder_id,
-//        x,
-//        order[x],
-//        code_sim->coder->first_dongle->dongle_id,
-//        *counter);
-
-//     pthread_mutex_unlock(&code_sim->coder->first_dongle->scheduler.counter_mtx);
-// }
-
-void edf_organiser(t_coder *coder, t_dongle *dongle, t_simulation *sim)
-{
-    pthread_mutex_lock(&dongle->scheduler.counter_mtx);
-
-    int *counter;
-    long long *order;
-
-    counter = &dongle->scheduler.counter;
-    order = dongle->scheduler.order;
-    
-    pthread_mutex_lock(&coder->state_mtx);
-    long long last_compile_time = coder->last_compile_time;
-    pthread_mutex_unlock(&coder->state_mtx);
-    
-    long long time_to_burnout = ms_to_us(sim->args.time_to_burnout);
-    
-    order[*counter] = last_compile_time + time_to_burnout;
-    long long timestamp = get_time_ms() - us_to_ms(sim->start_time);
-    printf("at %lld coder=%d\nlast_compile_time=%lld\ntime_to_burnout=  %lld\ntotal=            %lld\n",
-        timestamp,
-        coder->coder_id,
-       last_compile_time,
-       get_time_ms() - us_to_ms(last_compile_time),
-       order[*counter]
-);
-
-    (*counter)++;
-
-    int x = *counter - 1;
-
-    printf("----------------------------------------------------------------------------EDF: coder_id=%d | time[%d]=%lld | dongle_id=%d | counter=%d\n",
-       coder->coder_id,
-       x,
-       order[x],
-       dongle->dongle_id,
-       *counter);
-
-    pthread_mutex_unlock(&dongle->scheduler.counter_mtx);
-}
-
 void reset_order(t_scheduler *scheduler)
 {
     pthread_mutex_unlock(&scheduler->counter_mtx);
@@ -185,20 +135,56 @@ void reset_order(t_scheduler *scheduler)
 
 void reset_passed(t_dongle *dongle)
 {
-    pthread_mutex_lock(&dongle->coders_passed_mtx);
+    pthread_mutex_lock(&dongle->passed_mtx);
     dongle->coders_passed = 0;
-    pthread_mutex_unlock(&dongle->coders_passed_mtx);
+    pthread_mutex_unlock(&dongle->passed_mtx);
 
+}
+
+void edf_organiser(t_coder *coder, t_dongle *dongle, t_simulation *sim)
+{
+    pthread_mutex_lock(&dongle->scheduler.counter_mtx);
+
+    int *counter;
+    long long *order;
+
+    counter = &dongle->scheduler.counter;
+    order = dongle->scheduler.order;
+    
+    long long last_compile_time = get_last_compile_time(coder);
+    long long time_to_burnout = ms_to_us(sim->args.time_to_burnout);
+    
+    order[*counter] = last_compile_time + time_to_burnout;
+    long long timestamp = get_time_ms() - us_to_ms(sim->start_time);
+    printf("at %lld coder=%d time_to_burnout=  %lld, dongle_id=%d 11111111111111\n",
+        timestamp,
+        coder->coder_id,
+       get_time_ms() - us_to_ms(last_compile_time),
+       dongle->dongle_id
+    );
+
+    (*counter)++;
+
+    // int x = *counter - 1;
+
+    // printf("----------------------------------------------------------------------------EDF: coder_id=%d | time[%d]=%lld | dongle_id=%d | counter=%d\n",
+    //    coder->coder_id,
+    //    x,
+    //    order[x],
+    //    dongle->dongle_id,
+    //    *counter);
+
+    pthread_mutex_unlock(&dongle->scheduler.counter_mtx);
 }
 
 void edf_scheduler(t_code_sim *code_sim, t_dongle *dongle, int s_phase)
 {
     edf_organiser(code_sim->coder, dongle, code_sim->sim);
 
-    // while ((!s_phase && get_counter(dongle) < 2) || (s_phase && get_passed(dongle) == 2 && get_counter(dongle) < 2))
-    //     ;
+    while ((!s_phase && get_passed(dongle) == 2 && get_counter(dongle) < 2) || (s_phase && get_passed(dongle) == 2 && get_counter(dongle) < 2))
+        ;
 
-    long long last_compile_time = code_sim->coder->last_compile_time;
+    long long last_compile_time = get_last_compile_time(code_sim->coder);
     long long time_to_burnout = ms_to_us(code_sim->sim->args.time_to_burnout);
     long long edf_time = last_compile_time + time_to_burnout;
     long long first_time = dongle->scheduler.order[0];
@@ -239,54 +225,87 @@ void compile(t_code_sim *code_sim)
     // else
     //     printf("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh\n");
 
-    log_action(code_sim, "has tried to take the first dongle");
+    log_action(code_sim->sim, code_sim->coder, "has tried to take the first dongle");
+
+    long long now = get_time_us();
+    printf("at %lld coder %d should be waiting1: %lld####\n",get_time_ms() - us_to_ms(code_sim->sim->start_time), code_sim->coder->coder_id, now - now);
+    while (get_time_us() - get_last_used_time(code_sim->coder->first_dongle) < ms_to_us(code_sim->sim->args.dongle_cooldown))
+        ;
+    printf("at %lld coder %d should bedone waiting1: %lld@@@@\n",get_time_ms() - us_to_ms(code_sim->sim->start_time), code_sim->coder->coder_id, get_time_us() - now);
 
     if (code_sim->sim->is_edf)
         edf_scheduler(code_sim, code_sim->coder->first_dongle, 0);
-    
-        
+
     pthread_mutex_lock(&code_sim->coder->first_dongle->dongle_mtx);
     
-    pthread_mutex_lock(&code_sim->coder->second_dongle->coders_passed_mtx);
+    pthread_mutex_lock(&code_sim->coder->second_dongle->passed_mtx);
     code_sim->coder->second_dongle->coders_passed++;
-    pthread_mutex_unlock(&code_sim->coder->second_dongle->coders_passed_mtx);
+    pthread_mutex_unlock(&code_sim->coder->second_dongle->passed_mtx);
+    long long timestamp = get_time_ms() - us_to_ms(code_sim->sim->start_time);
+    long long last_compile_time = get_last_compile_time(code_sim->coder);
 
-    log_action(code_sim, "has taken a first dongle");
+    printf("at %lld coder=%d time_to_burnout=  %lld, dongle_id=%d 22222222222222\n",
+        timestamp,
+        code_sim->coder->coder_id,
+       get_time_ms() - us_to_ms(last_compile_time),
+       code_sim->coder->first_dongle->dongle_id
+    );
 
-    log_action(code_sim, "has tried to take the second dongle");
+    log_action(code_sim->sim, code_sim->coder, "has taken a first dongle");
+
+    log_action(code_sim->sim, code_sim->coder, "has tried to take the second dongle");
+    
+    now = get_time_us();
+    printf("at %lld coder %d should be waiting2: %lld####\n",get_time_ms() - us_to_ms(code_sim->sim->start_time), code_sim->coder->coder_id, now - now);
+    while (get_time_us() - get_last_used_time(code_sim->coder->second_dongle) < ms_to_us(code_sim->sim->args.dongle_cooldown))
+        ;
+    printf("at %lld coder %d should bedone waiting2: %lld@@@@\n",get_time_ms() - us_to_ms(code_sim->sim->start_time), code_sim->coder->coder_id, get_time_us() - now);
     
     if (code_sim->sim->is_edf)
         edf_scheduler(code_sim, code_sim->coder->second_dongle, 1);
     pthread_mutex_lock(&code_sim->coder->second_dongle->dongle_mtx);
-    log_action(code_sim, "has taken a second dongle");
+
     
-    log_action(code_sim, "is compiling");
+    timestamp = get_time_ms() - us_to_ms(code_sim->sim->start_time);
+    last_compile_time = get_last_compile_time(code_sim->coder);
+
+    printf("at %lld coder=%d time_to_burnout=  %lld, dongle_id=%d 3333333333333333\n",
+        timestamp,
+        code_sim->coder->coder_id,
+       get_time_ms() - us_to_ms(last_compile_time),
+       code_sim->coder->first_dongle->dongle_id
+    );
+    log_action(code_sim->sim, code_sim->coder, "has taken a second dongle");
+    
+    log_action(code_sim->sim, code_sim->coder, "is compiling");
 
     precise_sleep(code_sim->sim->args.time_to_compile, code_sim->sim);
     
-    pthread_mutex_lock(&code_sim->coder->state_mtx);
-    code_sim->coder->last_compile_time = get_time_us();
-    code_sim->coder->compile_count++;
-    pthread_mutex_unlock(&code_sim->coder->state_mtx);
+    set_last_compile_time(code_sim->coder, get_time_us());
+    set_last_used_time(code_sim->coder->first_dongle, get_last_compile_time(code_sim->coder));
+    set_last_used_time(code_sim->coder->second_dongle, get_last_compile_time(code_sim->coder));
     
-    log_action(code_sim, "has droped a first dongle");
+    log_action(code_sim->sim, code_sim->coder, "has droped a first dongle");
     pthread_mutex_unlock(&code_sim->coder->first_dongle->dongle_mtx);
-    log_action(code_sim, "has droped a second dongle");
+    log_action(code_sim->sim, code_sim->coder, "has droped a second dongle");
     pthread_mutex_unlock(&code_sim->coder->second_dongle->dongle_mtx);
 }
 
 void debug(t_code_sim *code_sim)
 { 
-    log_action(code_sim, "is debugging");
+    log_action(code_sim->sim, code_sim->coder, "is debugging");
     precise_sleep(code_sim->sim->args.time_to_debug, code_sim->sim);
 
 }
 
 void refactor(t_code_sim *code_sim)
 { 
-    log_action(code_sim, "is refactoring");
+    log_action(code_sim->sim, code_sim->coder, "is refactoring");
     precise_sleep(code_sim->sim->args.time_to_refactor, code_sim->sim);
-    log_action(code_sim, "is done refactoring");
+    pthread_mutex_lock(&code_sim->coder->state_mtx);
+    code_sim->coder->compile_count++;
+    pthread_mutex_unlock(&code_sim->coder->state_mtx);
+    log_action(code_sim->sim, code_sim->coder, "is done refactoring");
 }
 
 void *main_loop(void *arg)
@@ -310,29 +329,24 @@ void *main_loop(void *arg)
         compile(code_sim);
         debug(code_sim);
         refactor(code_sim);
-
     }
     return NULL;
 }
-
-long long x = 0;
 
 short check_if_coder_burned_out(t_simulation *sim)
 {
 
     for (int i = 0; i < sim->args.number_of_coders; i++)
     {
-        pthread_mutex_lock(&sim->coders[i].state_mtx);
-        long long last_compile_time = sim->coders[i].last_compile_time;
-        pthread_mutex_unlock(&sim->coders[i].state_mtx);
-
-        // long long now = get_time_us();
-        // long long time = now - last_compile_time;
-
+        long long last_compile_time = get_last_compile_time(&sim->coders[i]);
         long long now = get_time_us();
 
         if (now - last_compile_time >= ms_to_us(sim->args.time_to_burnout))
+        {
+            log_action(sim, &sim->coders[i], "burned out");
             set_finished(sim, 1);
+            exit(0);
+        }
     }
     return 0;
 }
@@ -349,9 +363,9 @@ void check_if_all_compiles_done(t_simulation *sim)
             return;
     }
     pthread_mutex_lock(&sim->is_finished_mtx);
+    printf("%lld done\n", get_time_ms());
     sim->is_finished = 1;
     pthread_mutex_unlock(&sim->is_finished_mtx);
-    printf("done\n");
 }
 
 void *the_watcher(void *arg)
@@ -405,9 +419,6 @@ void program_starter(t_simulation *sim)
     sim->start_time = get_time_us();
     unlock_mutex(&sim->is_ready_mtx, sim);
 
-    // for (int i = 0; i < sim->args.number_of_coders; i++)
-    //     sim->coders[i].last_compile_time = sim->start_time;
-
     for (int i = 0; i < num_of_coders; i++)
         thread_join(&sim->coders[i].coder, sim);
     pthread_join(sim->watcher_thread, NULL);
@@ -458,7 +469,8 @@ int main(int ac, char **av)
     
         initiate_mutex(&dongles[i].reset_mtx, &sim);
         initiate_mutex(&dongles[i].dongle_mtx, &sim);
-        initiate_mutex(&dongles[i].coders_passed_mtx, &sim);
+        initiate_mutex(&dongles[i].passed_mtx, &sim);
+        initiate_mutex(&dongles[i].used_time_mtx, &sim);
         initiate_mutex(&dongles[i].scheduler.counter_mtx, &sim);
     }
 
