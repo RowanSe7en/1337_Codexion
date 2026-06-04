@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:32 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/04 17:23:40 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 21:00:01 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,7 +51,7 @@ void precise_sleep(long long duration_ms, t_simulation *sim)// good
         if (elapsed >= duration_ms)
             break;
 
-        usleep(10);
+        usleep(1000);
     }
 }
 

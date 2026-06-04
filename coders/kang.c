@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 20:50:03 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/04 17:28:46 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 21:57:28 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,9 +18,10 @@ void thread_create(pthread_t *coder, void *func, t_code_sim *code_sim)// good
 
     if (result != 0)
     {
+        lock_mutex(&code_sim->sim->log_mtx, code_sim->sim);
         printf("Error: %s\n", strerror(result));
-        freedom(code_sim->sim->coders, code_sim->sim->dongles);
-        exit(1);
+        unlock_mutex(&code_sim->sim->log_mtx, code_sim->sim);
+        freedom(code_sim->sim);
     }
 
 }
@@ -31,21 +32,23 @@ void watcher_thread_create(pthread_t *watcher_thread, void *func, t_simulation *
 
     if (result != 0)
     {
+        lock_mutex(&sim->log_mtx, sim);
         printf("Error: %s\n", strerror(result));
-        freedom(sim->coders, sim->dongles);
-        exit(1);
+        unlock_mutex(&sim->log_mtx, sim);
+        freedom(sim);
     }
 
 }
 
-void thread_join(pthread_t *coder, t_simulation *sim)// good
+void thread_join(pthread_t *thread, t_simulation *sim)// good
 {
-    int result = pthread_join(*coder, NULL);
+    int result = pthread_join(*thread, NULL);
 
     if (result != 0)
     {
+        lock_mutex(&sim->log_mtx, sim);
         printf("Error: %s\n", strerror(result));
-        freedom(sim->coders, sim->dongles);
-        exit(1);
+        unlock_mutex(&sim->log_mtx, sim);
+        freedom(sim);
     }
 }

@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:44 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/04 17:22:56 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 21:26:03 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,7 +27,9 @@ void log_action(t_simulation *sim, t_coder *coder, char *action)// good
 {
     if (!sim->is_finished)
     {
+        lock_mutex(&sim->log_mtx, sim);
         long long timestamp = get_time_ms() - us_to_ms(sim->start_time);
         printf("%lld %d %s\n", timestamp, coder->coder_id, action);
+        unlock_mutex(&sim->log_mtx, sim);
     }
 }

@@ -6,16 +6,22 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:53 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/04 17:20:23 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 19:44:50 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-int freedom(t_coder *coders, t_dongle *dongles)// good
+void freedom(t_simulation *sim)// good
 {
-    free(coders);
-    free(dongles);
+    if (sim->coders)
+        free(sim->coders);
+    
+    if (sim->dongles)
+        free(sim->dongles);
+    
+    if (sim->codes_sims)
+        free(sim->codes_sims);
 
-    return 1;
+    exit(0);
 }

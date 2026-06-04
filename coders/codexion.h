@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/04 18:13:52 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 22:10:08 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,6 +79,7 @@ typedef struct s_simulation
     t_arguments args;
     t_coder     *coders;
     t_dongle    *dongles;
+    t_code_sim *codes_sims;
 
     long long   start_time;
     short  is_finished;
@@ -88,6 +89,7 @@ typedef struct s_simulation
 
     pthread_mutex_t log_mtx;
     pthread_mutex_t is_finished_mtx;
+    pthread_mutex_t start_time_mtx;
     pthread_mutex_t is_ready_mtx;
 
     pthread_t watcher_thread;
@@ -116,13 +118,13 @@ void precise_sleep(long long duration_ms, t_simulation *sim);
 short is_finished(t_simulation *sim);
 int bye_bye();
 void *malloc_for_me(long long bytes);
-int freedom(t_coder *coders, t_dongle *dongles);
+void freedom(t_simulation *sim);
 void destroy_them_all(t_simulation *sim);
 void initiate_mutex(pthread_mutex_t *mutex, t_simulation *sim);
 void lock_mutex(pthread_mutex_t *mutex, t_simulation *sim);
 void unlock_mutex(pthread_mutex_t *mutex, t_simulation *sim);
 void thread_create(pthread_t *coder, void *func, t_code_sim *code_sim);
-void thread_join(pthread_t *coder, t_simulation *sim);
+void thread_join(pthread_t *thread, t_simulation *sim);
 void watcher_thread_create(pthread_t *watcher_thread, void *func, t_simulation *sim);
 int dongle_is_ready(t_dongle *d, long long cooldown, t_simulation *sim);
 
