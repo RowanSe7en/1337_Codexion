@@ -6,37 +6,37 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:32 by brouane           #+#    #+#             */
-/*   Updated: 2026/05/09 22:57:44 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 17:23:40 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-long long get_time_ms(void)
+long long get_time_ms(void)// good
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return ((long long)tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 }
 
-long long get_time_us(void)
+long long get_time_us(void)// good
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return ((long long)tv.tv_sec * 1000000LL) + tv.tv_usec;
 }
 
-long long ms_to_us(long long ms)
+long long ms_to_us(long long ms)// good
 {
     return ms * 1000LL;
 }
 
-long long us_to_ms(long long us)
+long long us_to_ms(long long us)// good
 {
     return us / 1000LL;
 }
 
-void precise_sleep(long long duration_ms, t_simulation *sim)
+void precise_sleep(long long duration_ms, t_simulation *sim)// good
 {
     long long start;
     long long elapsed;

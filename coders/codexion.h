@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/05/15 19:28:49 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 18:13:52 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,7 +40,7 @@ typedef struct s_arguments
 
 typedef struct s_scheduler
 {
-    int counter;
+    short counter;
     long long order[2];
 
     pthread_mutex_t counter_mtx;
@@ -50,8 +50,6 @@ typedef struct s_scheduler
 typedef struct s_dongle
 {
     int dongle_id;
-    short is_available;
-    short can_reset;
     short coders_passed;
     long long last_used_time;
 
@@ -73,7 +71,6 @@ typedef struct s_coder
     t_simulation *sim;
     long long last_compile_time;
     pthread_mutex_t state_mtx;
-    // short is_regestered;
 
 } t_coder;
 
@@ -126,6 +123,7 @@ void lock_mutex(pthread_mutex_t *mutex, t_simulation *sim);
 void unlock_mutex(pthread_mutex_t *mutex, t_simulation *sim);
 void thread_create(pthread_t *coder, void *func, t_code_sim *code_sim);
 void thread_join(pthread_t *coder, t_simulation *sim);
-
+void watcher_thread_create(pthread_t *watcher_thread, void *func, t_simulation *sim);
+int dongle_is_ready(t_dongle *d, long long cooldown, t_simulation *sim);
 
 #endif

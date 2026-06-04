@@ -6,13 +6,13 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 22:18:27 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 12:34:03 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 17:19:55 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-int	ft_atoi(const char *nptr)
+int	ft_atoi(const char *nptr)// good
 {
 	size_t	i;
 	long	result;

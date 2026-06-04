@@ -6,13 +6,13 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:53 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 12:33:54 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 17:20:23 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-int freedom(t_coder *coders, t_dongle *dongles)
+int freedom(t_coder *coders, t_dongle *dongles)// good
 {
     free(coders);
     free(dongles);

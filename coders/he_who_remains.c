@@ -6,13 +6,13 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:44 by brouane           #+#    #+#             */
-/*   Updated: 2026/05/15 16:31:14 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 17:22:56 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-int bye_bye()
+int bye_bye()// good
 {
     printf("Pass exactly these number of arguments, with the EXACTE ");
     printf("order, and DO NOT miss any:\n");
@@ -23,7 +23,7 @@ int bye_bye()
     return (1);
 }
 
-void log_action(t_simulation *sim, t_coder *coder, char *action)
+void log_action(t_simulation *sim, t_coder *coder, char *action)// good
 {
     if (!sim->is_finished)
     {

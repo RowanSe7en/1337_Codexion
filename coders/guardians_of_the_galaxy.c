@@ -6,13 +6,13 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:33 by brouane           #+#    #+#             */
-/*   Updated: 2026/04/29 11:28:28 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/04 17:17:30 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-int str_parser(char *str)
+int str_parser(char *str)// good
 {
     int i = 0;
 
@@ -31,7 +31,7 @@ int str_parser(char *str)
     return 0;
 }
 
-int int_parser(int ac, char **av)
+int int_parser(int ac, char **av)// good
 {
     int i = 0;
 
@@ -46,7 +46,7 @@ int int_parser(int ac, char **av)
     return 0;
 }
 
-t_arguments parser(int ac, char **av)
+t_arguments parser(int ac, char **av)// good
 {
     t_arguments arguments;
     arguments.valid = 0;
