@@ -6,12 +6,12 @@
 #    By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/08 21:41:29 by brouane           #+#    #+#              #
-#    Updated: 2026/06/04 19:28:40 by brouane          ###   ########.fr        #
+#    Updated: 2026/06/05 23:59:10 by brouane          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 CC      = cc
-CFLAGS  = -Wall #-Wextra  -Werror
+CFLAGS  = -Wall -Wextra  #-Werror
 RM      = rm -f
 
 NAME    = codexion

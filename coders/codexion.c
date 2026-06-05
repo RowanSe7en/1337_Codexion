@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/04 22:46:16 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/06 00:40:43 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -166,33 +166,6 @@ void reset_passed(t_dongle *dongle, t_simulation *sim)// good
     unlock_mutex(&dongle->passed_mtx, sim);
 }
 
-// void edf_organiser(t_coder *coder, t_dongle *dongle, t_simulation *sim)
-// {
-//     pthread_mutex_lock(&dongle->scheduler.counter_mtx);
-
-//     short *counter;
-//     long long *order;
-
-//     counter = &dongle->scheduler.counter;
-//     order = dongle->scheduler.order;
-    
-//     long long last_compile_time = get_last_compile_time(coder, sim);
-//     long long time_to_burnout = ms_to_us(sim->args.time_to_burnout);
-    
-//     order[*counter] = last_compile_time + time_to_burnout;
-//     long long timestamp = get_time_ms() - us_to_ms(sim->start_time);
-//     printf("at %lld coder=%d time_to_burnout=  %lld, dongle_id=%d 11111111111111\n",
-//         timestamp,
-//         coder->coder_id,
-//        get_time_ms() - us_to_ms(last_compile_time),
-//        dongle->dongle_id
-//     );
-
-//     (*counter)++;
-
-//     pthread_mutex_unlock(&dongle->scheduler.counter_mtx);
-// }
-
 void wait_dongle_ready(t_dongle *d, t_simulation *sim)// good
 {
     long long cooldown = ms_to_us(sim->args.dongle_cooldown);
@@ -304,10 +277,15 @@ void compile(t_code_sim *cs)// good
     take_dongle(cs, cs->coder->second_dongle);
 
     log_action(cs->sim, cs->coder, "is compiling");
-    precise_sleep(cs->sim->args.time_to_compile, cs->sim);
 
     long long now = get_time_us();
     set_last_compile_time(cs->coder, now, cs->sim);
+
+    precise_sleep(cs->sim->args.time_to_compile, cs->sim);
+
+    now = get_time_us();
+    set_last_compile_time(cs->coder, now, cs->sim);
+
     set_last_used_time(cs->coder->first_dongle, now, cs->sim);
     set_last_used_time(cs->coder->second_dongle, now, cs->sim);
 
@@ -359,13 +337,18 @@ short check_if_coder_burned_out(t_simulation *sim)// good
 
     for (int i = 0; i < sim->args.number_of_coders; i++)
     {
+        if (get_compile_count(&sim->coders[i], sim)
+            >= sim->args.number_of_compiles_required)
+            continue;
+
         long long last_compile_time = get_last_compile_time(&sim->coders[i], sim);
         long long now = get_time_us();
 
         if (now - last_compile_time >= ms_to_us(sim->args.time_to_burnout))
         {
             log_action(sim, &sim->coders[i], "burned out");
-            return set_finished(sim, 1);
+            return 1;
+            // return set_finished(sim, 1);
         }
     }
     return 0;
@@ -380,9 +363,7 @@ void check_if_all_compiles_done(t_simulation *sim)// good
         if (compile_count != sim->args.number_of_compiles_required)
             return;
     }
-    lock_mutex(&sim->is_finished_mtx, sim);
-    sim->is_finished = 1;
-    unlock_mutex(&sim->is_finished_mtx, sim);
+    set_finished(sim, 1);
 }
 
 void *the_watcher(void *arg)// good
@@ -393,13 +374,14 @@ void *the_watcher(void *arg)// good
 
     while (!is_finished(sim))
     {
-        short burn = check_if_coder_burned_out(sim);
-        // if (burn)
-        //     freedom(sim);
+        if(check_if_coder_burned_out(sim))
+            break;
         
-        if (!is_finished(sim) && !burn)
+        if (!is_finished(sim))
+        {
             check_if_all_compiles_done(sim);
-        usleep(1000);
+            usleep(100);
+        }
     }
     
     return NULL;

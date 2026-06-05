@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:44 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/04 21:26:03 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/06 00:30:48 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,7 @@ int bye_bye()// good
 
 void log_action(t_simulation *sim, t_coder *coder, char *action)// good
 {
-    if (!sim->is_finished)
+    if (!is_finished(sim))
     {
         lock_mutex(&sim->log_mtx, sim);
         long long timestamp = get_time_ms() - us_to_ms(sim->start_time);
