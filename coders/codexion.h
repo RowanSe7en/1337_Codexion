@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/06 00:18:04 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/06 15:51:44 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -118,7 +118,7 @@ void precise_sleep(long long duration_ms, t_simulation *sim);
 short is_finished(t_simulation *sim);
 int bye_bye();
 void *malloc_for_me(long long bytes);
-void freedom(t_simulation *sim);
+void freedom(t_simulation *sim, short is_destroy);
 void destroy_them_all(t_simulation *sim);
 void initiate_mutex(pthread_mutex_t *mutex, t_simulation *sim);
 void lock_mutex(pthread_mutex_t *mutex, t_simulation *sim);

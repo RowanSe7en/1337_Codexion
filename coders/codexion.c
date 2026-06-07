@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/06 00:40:43 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/07 16:13:16 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -72,28 +72,19 @@ void set_coders_passed(t_dongle *dongle, t_simulation *sim)// good
     unlock_mutex(&dongle->passed_mtx, sim);
 }
 
-short set_finished(t_simulation *sim, short finish_it)// good
+void set_finished(t_simulation *sim)
 {
-    if (!finish_it)
-    {
-        for (int i = 0; i < sim->args.number_of_coders; i++)
-        {
-            long long count = get_compile_count(&sim->coders[i], sim);
-
-            if (count != sim->args.number_of_compiles_required)
-                return 0;
-        }
-    }
-
     lock_mutex(&sim->is_finished_mtx, sim);
-    short answer = sim->is_finished = 1;
+    sim->is_finished = 1;
     unlock_mutex(&sim->is_finished_mtx, sim);
-    return answer;
 }
 
-short is_finished(t_simulation *sim)// good
+short is_finished(t_simulation *sim)
 {
-    return set_finished(sim, 0);
+    lock_mutex(&sim->is_finished_mtx, sim);
+    short answer = sim->is_finished;
+    unlock_mutex(&sim->is_finished_mtx, sim);
+    return answer;
 }
 
 short get_ready(t_simulation *sim)// good
@@ -166,12 +157,16 @@ void reset_passed(t_dongle *dongle, t_simulation *sim)// good
     unlock_mutex(&dongle->passed_mtx, sim);
 }
 
-void wait_dongle_ready(t_dongle *d, t_simulation *sim)// good
+void wait_dongle_ready(t_dongle *d, t_simulation *sim)
 {
     long long cooldown = ms_to_us(sim->args.dongle_cooldown);
 
     while (!dongle_is_ready(d, cooldown, sim))
+    {
+        if (is_finished(sim))
+            return;
         precise_sleep(1, sim);
+    }
 }
 
 long long compute_deadline(t_coder *coder, t_simulation *sim)// good
@@ -186,10 +181,13 @@ void edf_register(t_dongle *d, long long deadline, t_simulation *sim)// good
     unlock_mutex(&d->scheduler.counter_mtx, sim);
 }
 
-void edf_wait_turn(t_dongle *d, long long my_deadline, t_code_sim *code_sim)// good
+void edf_wait_turn(t_dongle *d, long long my_deadline, t_code_sim *code_sim)
 {
     while (1)
     {
+        if (is_finished(code_sim->sim))
+            return;
+
         short counter = get_counter(d, code_sim->sim);
         short passed  = get_coders_passed(d, code_sim->sim);
 
@@ -201,14 +199,9 @@ void edf_wait_turn(t_dongle *d, long long my_deadline, t_code_sim *code_sim)// g
             lock_mutex(&d->scheduler.counter_mtx, code_sim->sim);
             long long a = d->scheduler.order[0];
             long long b = d->scheduler.order[1];
-            // printf("at %lld coder %d with %lld | [0] %lld [1] %lld\n", timestamp, code_sim->coder->coder_id, my_deadline, a, b);
             unlock_mutex(&d->scheduler.counter_mtx, code_sim->sim);
             
             long long winner = (a < b) ? a : b;
-
-            // long long timestamp = get_time_ms() - us_to_ms(code_sim->sim->start_time);
-            // printf("at %lld coder %d with %lld | [0] %lld [1] %lld, winner %lld\n", timestamp, code_sim->coder->coder_id, my_deadline, a, b, winner);
-
             if (winner == my_deadline)
                 return;
         }
@@ -235,12 +228,14 @@ int dongle_is_ready(t_dongle *d, long long cooldown, t_simulation *sim)// good
     return (elapsed >= cooldown);
 }
 
-void take_dongle(t_code_sim *cs, t_dongle *d)// good
+void take_dongle(t_code_sim *cs, t_dongle *d)
 {
     t_simulation *sim = cs->sim;
     t_coder *coder = cs->coder;
 
     wait_dongle_ready(d, sim);
+    if (is_finished(sim))
+        return;
 
     if (sim->is_edf)
     {
@@ -249,20 +244,28 @@ void take_dongle(t_code_sim *cs, t_dongle *d)// good
         edf_wait_turn(d, deadline, cs);
     }
 
+    if (is_finished(sim))
+        return;
+
     while (1)
     {
-        lock_mutex(&d->dongle_mtx, cs->sim);
+        lock_mutex(&d->dongle_mtx, sim);
 
-        if (dongle_is_ready(d, ms_to_us(sim->args.dongle_cooldown), cs->sim))
+        if (is_finished(sim))
+        {
+            unlock_mutex(&d->dongle_mtx, sim);
+            return;
+        }
+
+        if (dongle_is_ready(d, ms_to_us(sim->args.dongle_cooldown), sim))
             break;
 
-        unlock_mutex(&d->dongle_mtx, cs->sim);
+        unlock_mutex(&d->dongle_mtx, sim);
         precise_sleep(1, sim);
     }
 
     edf_reset(d, sim);
     reset_passed(d, sim);
-
     log_action(sim, coder, "has taken a dongle");
 }
 
@@ -271,19 +274,24 @@ void compile(t_code_sim *cs)// good
     set_coders_passed(cs->coder->first_dongle, cs->sim);
     log_action(cs->sim, cs->coder, "has tried to take first dongle");
     take_dongle(cs, cs->coder->first_dongle);
+    if (is_finished(cs->sim))
+        return;
 
     set_coders_passed(cs->coder->second_dongle, cs->sim);
     log_action(cs->sim, cs->coder, "has tried to take second dongle");
     take_dongle(cs, cs->coder->second_dongle);
+    if (is_finished(cs->sim))
+    {
+        unlock_mutex(&cs->coder->first_dongle->dongle_mtx, cs->sim);
+        return;
+    }
 
     log_action(cs->sim, cs->coder, "is compiling");
 
-    long long now = get_time_us();
-    set_last_compile_time(cs->coder, now, cs->sim);
 
     precise_sleep(cs->sim->args.time_to_compile, cs->sim);
 
-    now = get_time_us();
+    long long now = get_time_us();
     set_last_compile_time(cs->coder, now, cs->sim);
 
     set_last_used_time(cs->coder->first_dongle, now, cs->sim);
@@ -296,18 +304,18 @@ void compile(t_code_sim *cs)// good
     log_action(cs->sim, cs->coder, "has dropped second dongle");
 }
 
-void debug(t_code_sim *code_sim)// good
-{ 
-    log_action(code_sim->sim, code_sim->coder, "is debugging");
-    precise_sleep(code_sim->sim->args.time_to_debug, code_sim->sim);
-
+void	debug(t_code_sim *code_sim)
+{
+	log_action(code_sim->sim, code_sim->coder, "is debugging");
+	precise_sleep(code_sim->sim->args.time_to_debug, code_sim->sim);
 }
 
-void refactor(t_code_sim *code_sim)// good
-{ 
-    log_action(code_sim->sim, code_sim->coder, "is refactoring");
-    precise_sleep(code_sim->sim->args.time_to_refactor, code_sim->sim);
-    set_compile_count(code_sim->coder, code_sim->sim);
+void	refactor(t_code_sim *code_sim)
+{
+	log_action(code_sim->sim, code_sim->coder, "is refactoring");
+	precise_sleep(code_sim->sim->args.time_to_refactor, code_sim->sim);
+	if (!is_finished(code_sim->sim))  // ← don't increment if burned out
+		set_compile_count(code_sim->coder, code_sim->sim);
 }
 
 void *main_loop(void *arg)// good
@@ -348,7 +356,6 @@ short check_if_coder_burned_out(t_simulation *sim)// good
         {
             log_action(sim, &sim->coders[i], "burned out");
             return 1;
-            // return set_finished(sim, 1);
         }
     }
     return 0;
@@ -363,7 +370,7 @@ void check_if_all_compiles_done(t_simulation *sim)// good
         if (compile_count != sim->args.number_of_compiles_required)
             return;
     }
-    set_finished(sim, 1);
+    set_finished(sim);
 }
 
 void *the_watcher(void *arg)// good
@@ -374,8 +381,11 @@ void *the_watcher(void *arg)// good
 
     while (!is_finished(sim))
     {
-        if(check_if_coder_burned_out(sim))
-            break;
+        if (check_if_coder_burned_out(sim))
+        {
+            set_finished(sim);
+            return NULL;
+        }
         
         if (!is_finished(sim))
         {
@@ -395,7 +405,7 @@ void program_starter(t_simulation *sim)// good
     sim->codes_sims = codes_sims;
 
     if (!codes_sims)
-        freedom(sim);
+        freedom(sim, 1);
 
     for (int i = 0; i < num_of_coders; i++)
     {
@@ -409,6 +419,11 @@ void program_starter(t_simulation *sim)// good
     lock_mutex(&sim->start_time_mtx, sim);
     sim->start_time = get_time_us();
     unlock_mutex(&sim->start_time_mtx, sim);
+
+    for (int i = 0; i < num_of_coders; i++)
+    {
+        set_last_compile_time(codes_sims[i].coder, get_start_time(codes_sims[i].sim), codes_sims[i].sim);
+    }
 
     lock_mutex(&sim->is_ready_mtx, sim);
     sim->is_all_ready = 1;
@@ -440,7 +455,7 @@ int main(int ac, char **av)
     sim.dongles = dongles;
 
     if (!coders || !dongles)
-        freedom(&sim);
+        freedom(&sim, 0);
 
     sim.args = data;
     sim.is_finished = 0;
@@ -473,7 +488,6 @@ int main(int ac, char **av)
     {
         coders[i].coder_id = i + 1;
         coders[i].compile_count = 0;
-        coders[i].last_compile_time = get_time_us();
         coders[i].sim = &sim;
         initiate_mutex(&coders[i].state_mtx, &sim);
 
@@ -492,8 +506,7 @@ int main(int ac, char **av)
 
     program_starter(&sim);
 
-    destroy_them_all(&sim);
-    freedom(&sim);
+    freedom(&sim, 1);
 
     return 0;
 }

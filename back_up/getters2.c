@@ -1,30 +1,30 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   freedom.c                                          :+:      :+:    :+:   */
+/*   getters2.c                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/04/29 12:33:53 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/06 15:51:03 by brouane          ###   ########.fr       */
+/*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
+/*   Updated: 2026/06/06 16:33:32 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-void freedom(t_simulation *sim, short is_destroy)// good
+int	get_coders_passed(t_dongle *dongle, t_simulation *sim)
 {
-    if (is_destroy)
-        destroy_them_all(sim);
+	int answer;
+	lock_mutex(&dongle->passed_mtx, sim);
+	answer = dongle->coders_passed;
+	unlock_mutex(&dongle->passed_mtx, sim);
+	return answer;
+}
 
-    if (sim->coders)
-        free(sim->coders);
-    
-    if (sim->dongles)
-        free(sim->dongles);
-    
-    if (sim->codes_sims)
-        free(sim->codes_sims);
-
-    exit(0);
+short	get_ready(t_simulation *sim)
+{
+	lock_mutex(&sim->is_ready_mtx, sim);
+	short answer = sim->is_all_ready;
+	unlock_mutex(&sim->is_ready_mtx, sim);
+	return answer;
 }
