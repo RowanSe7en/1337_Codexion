@@ -6,7 +6,7 @@
 #    By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/08 21:41:29 by brouane           #+#    #+#              #
-#    Updated: 2026/06/07 17:18:17 by brouane          ###   ########.fr        #
+#    Updated: 2026/06/07 22:29:44 by brouane          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -16,25 +16,25 @@ RM      = rm -f
 
 NAME    = codexion
 
-SRCS    = codexion.c \
-          program.c \
-          dongle_stuff.c \
-          dr_strange.c \
-          groot.c \
-          guardians_of_the_galaxy.c \
-          time_variance_authority.c \
-          he_who_remains.c \
-          ultron_vision.c \
-          freedom.c \
-          kang.c \
-          coder.c \
-          watcher.c \
-          getters.c \
-          getters2.c \
-          setters.c \
-          sync.c \
-          edf.c \
-          dongle.c
+SRCS	= codexion.c \
+		  simulation_start.c \
+		  dongle_utils.c \
+		  ft_atoi.c \
+		  parsing_utils.c \
+		  parser.c \
+		  time_utils.c \
+		  logging.c \
+		  mutex_utils.c \
+		  freedom.c \
+		  thread_utils.c \
+		  coder_routine.c \
+		  watcher.c \
+		  coder_getters.c \
+		  simulation_getters.c \
+		  state_setters.c \
+		  sync_utils.c \
+		  edf_scheduler.c \
+		  dongle.c
 
 OBJS    = $(SRCS:.c=.o)
 
