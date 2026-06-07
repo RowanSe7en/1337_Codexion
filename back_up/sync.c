@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/07 15:40:41 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/07 22:11:39 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,10 +14,12 @@
 
 short	is_finished(t_simulation *sim)
 {
+	short	answer;
+
 	lock_mutex(&sim->is_finished_mtx, sim);
-	short answer = sim->is_finished;
+	answer = sim->is_finished;
 	unlock_mutex(&sim->is_finished_mtx, sim);
-	return answer;
+	return (answer);
 }
 
 void	sync_threads(t_simulation *sim)
@@ -35,15 +37,19 @@ void	reset_passed(t_dongle *dongle, t_simulation *sim)
 
 int	dongle_is_ready(t_dongle *d, long long cooldown, t_simulation *sim)
 {
-	long long now = get_time_us();
-	long long elapsed = now - get_last_used_time(d, sim);
+	long long	now;
+	long long	elapsed;
+
+	now = get_time_us();
+	elapsed = now - get_last_used_time(d, sim);
 	return (elapsed >= cooldown);
 }
 
 void	wait_dongle_ready(t_dongle *d, t_simulation *sim)
 {
-	long long cooldown = ms_to_us(sim->args.dongle_cooldown);
+	long long	cooldown;
 
+	cooldown = ms_to_us(sim->args.dongle_cooldown);
 	while (!dongle_is_ready(d, cooldown, sim))
 	{
 		if (is_finished(sim))

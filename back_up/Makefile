@@ -6,7 +6,7 @@
 #    By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/08 21:41:29 by brouane           #+#    #+#              #
-#    Updated: 2026/06/07 16:00:01 by brouane          ###   ########.fr        #
+#    Updated: 2026/06/07 17:18:17 by brouane          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -17,6 +17,8 @@ RM      = rm -f
 NAME    = codexion
 
 SRCS    = codexion.c \
+          program.c \
+          dongle_stuff.c \
           dr_strange.c \
           groot.c \
           guardians_of_the_galaxy.c \

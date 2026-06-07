@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/06 16:33:32 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/07 22:04:22 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,17 +14,20 @@
 
 int	get_coders_passed(t_dongle *dongle, t_simulation *sim)
 {
-	int answer;
+	int	answer;
+
 	lock_mutex(&dongle->passed_mtx, sim);
 	answer = dongle->coders_passed;
 	unlock_mutex(&dongle->passed_mtx, sim);
-	return answer;
+	return (answer);
 }
 
 short	get_ready(t_simulation *sim)
 {
+	short	answer;
+
 	lock_mutex(&sim->is_ready_mtx, sim);
-	short answer = sim->is_all_ready;
+	answer = sim->is_all_ready;
 	unlock_mutex(&sim->is_ready_mtx, sim);
-	return answer;
+	return (answer);
 }
