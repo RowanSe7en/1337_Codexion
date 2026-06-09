@@ -6,37 +6,35 @@
 #    By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/01/08 21:41:29 by brouane           #+#    #+#              #
-#    Updated: 2026/06/09 15:37:10 by brouane          ###   ########.fr        #
+#    Updated: 2026/06/07 16:13:16 by brouane          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-CC      = cc
-CFLAGS  = -Wall -Wextra -Werror
-RM      = rm -f
+CC		= cc
+CFLAGS	= -Wall -Wextra -Werror
+RM		= rm -f
 
-NAME    = codexion
+NAME	= codexion
 
 SRCS	= codexion.c \
-		  simulation_start.c \
-		  dongle_utils.c \
-		  ft_atoi.c \
-		  parsing_utils.c \
-		  parser.c \
-		  time_utils.c \
-		  logging.c \
-		  mutex_utils.c \
+		  dr_strange.c \
+		  groot.c \
+		  guardians_of_the_galaxy.c \
+		  time_variance_authority.c \
+		  he_who_remains.c \
+		  ultron_vision.c \
+		  loki.c \
 		  freedom.c \
-		  thread_utils.c \
-		  coder_routine.c \
+		  kang.c \
 		  watcher.c \
-		  coder_getters.c \
-		  simulation_getters.c \
-		  state_setters.c \
-		  sync_utils.c \
-		  edf_scheduler.c \
-		  dongle.c
+		  dongle.c \
+		  edf.c \
+		  simulation.c \
+		  main.c \
+		  init.c \
+		  main_entry.c
 
-OBJS    = $(SRCS:.c=.o)
+OBJS	= $(SRCS:.c=.o)
 
 all: $(NAME)
 
@@ -45,7 +43,7 @@ it: all
 	./codexion 6 2000 200 200 200 3 400 edf
 
 $(NAME): $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $(NAME)
+	$(CC) $(CFLAGS) $(OBJS) -o $(NAME) -lpthread
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@

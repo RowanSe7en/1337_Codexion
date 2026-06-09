@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   thread_utils.c                                     :+:      :+:    :+:   */
+/*   kang.c                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 20:50:03 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/09 16:36:27 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/07 16:13:16 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,12 +26,11 @@ void	thread_create(pthread_t *coder, void *func, t_code_sim *code_sim)
 	}
 }
 
-void	watcher_thread_create(pthread_t *watcher_thread,
-			void *func, t_simulation *sim)
+void	watcher_thread_create(pthread_t *wt, void *func, t_simulation *sim)
 {
 	int	result;
 
-	result = pthread_create(watcher_thread, NULL, func, sim);
+	result = pthread_create(wt, NULL, func, sim);
 	if (result != 0)
 	{
 		lock_mutex(&sim->log_mtx, sim);

@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/07 17:17:53 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/07 22:27:55 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/09 15:30:26 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,37 +21,37 @@ void	fifo_register(t_dongle *d, int coder_id, t_simulation *sim)
 
 void	fifo_wait_turn(t_dongle *d, int my_id, t_code_sim *cs)
 {
-	short		counter;
-	short		passed;
-	long long	first;
+	long long	a;
+	long long	b;
 
 	while (1)
 	{
 		if (is_finished(cs->sim))
 			return ;
-		counter = get_counter(d, cs->sim);
-		passed = get_coders_passed(d, cs->sim);
-		if (counter == 0 || (counter == 1 && passed == 1))
+		lock_mutex(&d->scheduler.counter_mtx, cs->sim);
+		a = d->scheduler.order[0];
+		b = d->scheduler.order[1];
+		unlock_mutex(&d->scheduler.counter_mtx, cs->sim);
+		if (a == 0 && b == 0)
 			return ;
-		if (counter == 2 && passed == 2)
-		{
-			lock_mutex(&d->scheduler.counter_mtx, cs->sim);
-			first = d->scheduler.order[0];
-			unlock_mutex(&d->scheduler.counter_mtx, cs->sim);
-			if (first == my_id)
-				return ;
-		}
+		if (b == 0)
+			return ;
+		if (a == my_id)
+			return ;
 		precise_sleep(1, cs->sim);
 	}
 }
 
-void	register_dongle(t_code_sim *cs, t_dongle *d)
+void	register_dongle(t_code_sim *cs, t_dongle *d, int holding_first)
 {
 	long long	deadline;
 
 	if (cs->sim->is_edf)
 	{
-		deadline = compute_deadline(cs->coder, cs->sim);
+		if (holding_first)
+			deadline = -1;
+		else
+			deadline = compute_deadline(cs->coder, cs->sim);
 		edf_register(d, deadline, cs->sim);
 		edf_wait_turn(d, deadline, cs);
 	}
@@ -81,7 +81,8 @@ int	wait_and_lock_dongle(t_dongle *d, t_simulation *sim)
 	return (1);
 }
 
-int	take_dongle(t_code_sim *cs, t_dongle *d, int already_held)
+int	take_dongle(t_code_sim *cs, t_dongle *d, int already_held,
+		int holding_first)
 {
 	t_simulation	*sim;
 	t_coder			*coder;
@@ -97,7 +98,7 @@ int	take_dongle(t_code_sim *cs, t_dongle *d, int already_held)
 			precise_sleep(1, sim);
 		return (0);
 	}
-	register_dongle(cs, d);
+	register_dongle(cs, d, holding_first);
 	if (is_finished(sim))
 		return (0);
 	if (!wait_and_lock_dongle(d, sim))

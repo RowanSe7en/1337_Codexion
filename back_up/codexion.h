@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/07 16:05:00 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/09 15:36:03 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,8 +20,6 @@
 # include <string.h>
 # include <sys/time.h>
 # include <limits.h>
-
-/* ---- structs (keep yours here or in a separate types.h) ---- */
 
 typedef struct s_arguments
 {
@@ -92,18 +90,15 @@ typedef struct s_code_sim
 	t_coder			*coder;
 }	t_code_sim;
 
-/* ---- getters.c ---- */
 long long	get_last_compile_time(t_coder *coder, t_simulation *sim);
 long long	get_compile_count(t_coder *coder, t_simulation *sim);
 long long	get_last_used_time(t_dongle *dongle, t_simulation *sim);
 long long	get_start_time(t_simulation *sim);
 int			get_counter(t_dongle *dongle, t_simulation *sim);
 
-/* ---- getters2.c ---- */
 int			get_coders_passed(t_dongle *dongle, t_simulation *sim);
 short		get_ready(t_simulation *sim);
 
-/* ---- setters.c ---- */
 void		set_last_compile_time(t_coder *coder, long long now,
 				t_simulation *sim);
 void		set_compile_count(t_coder *coder, t_simulation *sim);
@@ -112,61 +107,60 @@ void		set_last_used_time(t_dongle *dongle, long long time,
 void		set_coders_passed(t_dongle *dongle, t_simulation *sim);
 void		set_finished(t_simulation *sim);
 
-/* ---- sync.c ---- */
 short		is_finished(t_simulation *sim);
 void		sync_threads(t_simulation *sim);
 void		reset_passed(t_dongle *dongle, t_simulation *sim);
-int			dongle_is_ready(t_dongle *d, long long cooldown, t_simulation *sim);
+int			dongle_is_ready(t_dongle *d, long long cooldown,
+				t_simulation *sim);
 void		wait_dongle_ready(t_dongle *d, t_simulation *sim);
 
-/* ---- edf.c ---- */
 long long	compute_deadline(t_coder *coder, t_simulation *sim);
-void		edf_register(t_dongle *d, long long deadline, t_simulation *sim);
+void		edf_register(t_dongle *d, long long deadline,
+				t_simulation *sim);
 void		edf_wait_turn(t_dongle *d, long long my_deadline,
 				t_code_sim *code_sim);
 void		edf_reset(t_dongle *d, t_simulation *sim);
 
-/* ---- dongle.c ---- */
-int			take_dongle(t_code_sim *cs, t_dongle *d, int already_held);
+void		register_dongle(t_code_sim *cs, t_dongle *d,
+				int holding_first);
+int			take_dongle(t_code_sim *cs, t_dongle *d,
+				int already_held, int holding_first);
 void		compile(t_code_sim *cs);
 
-/* ---- coder.c ---- */
 void		debug(t_code_sim *code_sim);
 void		refactor(t_code_sim *code_sim);
 void		*main_loop(void *arg);
 
-/* ---- watcher.c ---- */
 short		check_if_coder_burned_out(t_simulation *sim);
 void		check_if_all_compiles_done(t_simulation *sim);
 void		*the_watcher(void *arg);
 
-/* ---- codexion.c ---- */
 void		program_starter(t_simulation *sim);
-int			main(int ac, char **av);
 
-/* ---- utils / other files you already have ---- */
 long long	get_time_ms(void);
 long long	get_time_us(void);
 long long	ms_to_us(long long ms);
 long long	us_to_ms(long long us);
 void		precise_sleep(long long duration_ms, t_simulation *sim);
+
 void		lock_mutex(pthread_mutex_t *mutex, t_simulation *sim);
 void		unlock_mutex(pthread_mutex_t *mutex, t_simulation *sim);
 void		initiate_mutex(pthread_mutex_t *mutex, t_simulation *sim);
 void		destroy_them_all(t_simulation *sim);
-void		thread_create(pthread_t *coder, void *func, t_code_sim *code_sim);
-void		watcher_thread_create(pthread_t *watcher_thread, void *func,
-				t_simulation *sim);
+
+void		thread_create(pthread_t *coder, void *func,
+				t_code_sim *code_sim);
+void		watcher_thread_create(pthread_t *watcher_thread,
+				void *func, t_simulation *sim);
 void		thread_join(pthread_t *thread, t_simulation *sim);
-void		log_action(t_simulation *sim, t_coder *coder, char *action);
+
+void		log_action(t_simulation *sim, t_coder *coder,
+				char *action);
 void		freedom(t_simulation *sim, short is_destroy);
+
 int			bye_bye(void);
 t_arguments	parser(int ac, char **av);
-
-
-short dig_sign_checker(char *str);
-int	ft_atoi(const char *nptr);
-void	compile(t_code_sim *cs);
-
+short		dig_sign_checker(char *str);
+int			ft_atoi(const char *nptr);
 
 #endif

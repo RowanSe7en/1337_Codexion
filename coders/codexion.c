@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/07 16:13:16 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/09 22:37:10 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -165,7 +165,7 @@ void wait_dongle_ready(t_dongle *d, t_simulation *sim)
     {
         if (is_finished(sim))
             return;
-        precise_sleep(1, sim);
+        usleep(1000);
     }
 }
 
@@ -205,8 +205,7 @@ void edf_wait_turn(t_dongle *d, long long my_deadline, t_code_sim *code_sim)
             if (winner == my_deadline)
                 return;
         }
-
-        precise_sleep(1, code_sim->sim);
+		usleep(1000);
     }
 }
 
@@ -261,7 +260,7 @@ void take_dongle(t_code_sim *cs, t_dongle *d)
             break;
 
         unlock_mutex(&d->dongle_mtx, sim);
-        precise_sleep(1, sim);
+        usleep(1000);
     }
 
     edf_reset(d, sim);
@@ -288,11 +287,10 @@ void compile(t_code_sim *cs)// good
 
     log_action(cs->sim, cs->coder, "is compiling");
 
-
-    precise_sleep(cs->sim->args.time_to_compile, cs->sim);
-
     long long now = get_time_us();
     set_last_compile_time(cs->coder, now, cs->sim);
+
+    precise_sleep(cs->sim->args.time_to_compile, cs->sim);
 
     set_last_used_time(cs->coder->first_dongle, now, cs->sim);
     set_last_used_time(cs->coder->second_dongle, now, cs->sim);
@@ -314,7 +312,7 @@ void	refactor(t_code_sim *code_sim)
 {
 	log_action(code_sim->sim, code_sim->coder, "is refactoring");
 	precise_sleep(code_sim->sim->args.time_to_refactor, code_sim->sim);
-	if (!is_finished(code_sim->sim))  // ← don't increment if burned out
+	if (!is_finished(code_sim->sim))
 		set_compile_count(code_sim->coder, code_sim->sim);
 }
 

@@ -1,22 +1,34 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   edf_scheduler.c                                    :+:      :+:    :+:   */
+/*   edf.c                                              :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/09 15:34:15 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/09 22:22:28 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
+void	wait_dongle_ready(t_dongle *d, t_simulation *sim)
+{
+	long long	cooldown;
+
+	cooldown = ms_to_us(sim->args.dongle_cooldown);
+	while (!dongle_is_ready(d, cooldown, sim))
+	{
+		if (is_finished(sim))
+			return ;
+		usleep(1000);
+	}
+}
+
 long long	compute_deadline(t_coder *coder, t_simulation *sim)
 {
 	return (get_last_compile_time(coder, sim)
-		+ ms_to_us(sim->args.time_to_burnout)
-		- get_start_time(sim));
+		+ ms_to_us(sim->args.time_to_burnout) - get_start_time(sim));
 }
 
 void	edf_register(t_dongle *d, long long deadline, t_simulation *sim)
@@ -26,43 +38,6 @@ void	edf_register(t_dongle *d, long long deadline, t_simulation *sim)
 	unlock_mutex(&d->scheduler.counter_mtx, sim);
 }
 
-static int	edf_winner(long long a, long long b, long long my_deadline)
-{
-	if (a == my_deadline)
-	{
-		if (my_deadline <= b)
-			return (1);
-	}
-	else
-	{
-		if (my_deadline < a)
-			return (1);
-	}
-	return (0);
-}
-
-void	edf_wait_turn(t_dongle *d, long long my_deadline,
-	t_code_sim *code_sim)
-{
-	long long	a;
-	long long	b;
-
-	while (1)
-	{
-		if (is_finished(code_sim->sim))
-			return ;
-		lock_mutex(&d->scheduler.counter_mtx, code_sim->sim);
-		a = d->scheduler.order[0];
-		b = d->scheduler.order[1];
-		unlock_mutex(&d->scheduler.counter_mtx, code_sim->sim);
-		if ((a == 0 && b == 0) || b == 0)
-			return ;
-		if (edf_winner(a, b, my_deadline))
-			return ;
-		precise_sleep(1, code_sim->sim);
-	}
-}
-
 void	edf_reset(t_dongle *d, t_simulation *sim)
 {
 	lock_mutex(&d->scheduler.counter_mtx, sim);
@@ -70,4 +45,14 @@ void	edf_reset(t_dongle *d, t_simulation *sim)
 	d->scheduler.order[0] = 0;
 	d->scheduler.order[1] = 0;
 	unlock_mutex(&d->scheduler.counter_mtx, sim);
+}
+
+int	dongle_is_ready(t_dongle *d, long long cooldown, t_simulation *sim)
+{
+	long long	now;
+	long long	elapsed;
+
+	now = get_time_us();
+	elapsed = now - get_last_used_time(d, sim);
+	return (elapsed >= cooldown);
 }
