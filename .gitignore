@@ -1,5 +1,4 @@
-coders/codexion
+codexion
 coders/*.o
 coders/*.py
 test*
-*.o
