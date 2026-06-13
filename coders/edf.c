@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/12 20:03:48 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/13 16:42:02 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,12 +56,12 @@ void	edf_deregister(t_dongle *d, long long deadline, t_simulation *sim)
 
 void	edf_wait_turn(t_dongle *d, long long my_deadline, t_code_sim *cs)
 {
-	precise_sleep(5, cs->sim);
+	usleep(1000);
 	while (!is_finished(cs->sim))
 	{
 		if (edf_early(d, my_deadline, cs->sim))
 			return ;
-		precise_sleep(1, cs->sim);
+		usleep(500);
 	}
 }
 

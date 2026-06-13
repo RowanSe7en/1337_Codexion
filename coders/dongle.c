@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/12 20:46:02 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/13 18:58:45 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,10 +44,7 @@ void	take_dongle_wait_loop(t_code_sim *cs, t_dongle *d)
 	{
 		lock_mutex(&d->dongle_mtx, sim);
 		if (is_finished(sim))
-		{
-			unlock_mutex(&d->dongle_mtx, sim);
 			return ;
-		}
 		if (dongle_is_ready(d, ms_to_us(sim->args.dongle_cooldown), sim))
 			break ;
 		unlock_mutex(&d->dongle_mtx, sim);

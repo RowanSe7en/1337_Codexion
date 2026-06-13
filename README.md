@@ -1127,8 +1127,6 @@ The uniform getter/setter pattern and the one-mutex-per-field discipline are spe
 
 ## Resources
 
-## References and Learning Resources
-
 The following resources were used throughout the development of Codexion to study concurrent programming, thread synchronization, scheduling algorithms, and debugging techniques.
 
 ### AI-Assisted Learning and Debugging

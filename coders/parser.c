@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   guardians_of_the_galaxy.c                          :+:      :+:    :+:   */
+/*   parser.c                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:33 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/11 19:49:20 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/13 19:00:45 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,7 @@ int	str_parser(char *str)
 	}
 	if (strcmp(str, "fifo") != 0 && strcmp(str, "edf") != 0)
 	{
-		printf("No scheduler allowed other than fifo or edf\n");
+		printf("No scheduler allowed, other than fifo or edf\n");
 		return (1);
 	}
 	return (0);
