@@ -6,11 +6,13 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:28 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/12 20:00:52 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/15 18:34:42 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
+#include <string.h>
+#include <errno.h>
 
 void	initiate_mutex(pthread_mutex_t *mutex, t_simulation *sim)
 {
@@ -20,9 +22,9 @@ void	initiate_mutex(pthread_mutex_t *mutex, t_simulation *sim)
 	if (result != 0)
 	{
 		lock_mutex(&sim->log_mtx, sim);
-		printf("Error: %s\n", strerror(result));
+		fprintf(stderr, "Error: mutex init: %s\n", strerror(result));
 		unlock_mutex(&sim->log_mtx, sim);
-		freedom(sim, 1);
+		freedom(sim, 0);
 	}
 }
 
@@ -34,9 +36,9 @@ void	lock_mutex(pthread_mutex_t *mutex, t_simulation *sim)
 	if (result != 0)
 	{
 		lock_mutex(&sim->log_mtx, sim);
-		printf("Error: %s\n", strerror(result));
+		fprintf(stderr, "Error: mutex lock: %s\n", strerror(result));
 		unlock_mutex(&sim->log_mtx, sim);
-		freedom(sim, 1);
+		freedom(sim, 0);
 	}
 }
 
@@ -48,9 +50,9 @@ void	unlock_mutex(pthread_mutex_t *mutex, t_simulation *sim)
 	if (result != 0)
 	{
 		lock_mutex(&sim->log_mtx, sim);
-		printf("Error: %s\n", strerror(result));
+		fprintf(stderr, "Error: mutex unlock: %s\n", strerror(result));
 		unlock_mutex(&sim->log_mtx, sim);
-		freedom(sim, 1);
+		freedom(sim, 0);
 	}
 }
 

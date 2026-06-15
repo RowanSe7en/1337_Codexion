@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/12 20:04:12 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/15 18:39:14 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,8 @@ typedef struct s_arguments
 
 typedef struct s_scheduler
 {
-	long long		order[2];
+	long long		deadlines[2];
+	int				coder_ids[2];
 	pthread_mutex_t	order_mtx;
 }	t_scheduler;
 
@@ -71,6 +72,7 @@ typedef struct s_simulation
 	t_code_sim		*codes_sims;
 	long long		start_time;
 	short			is_finished;
+	short			is_done;
 	short			is_all_ready;
 	short			is_edf;
 	pthread_mutex_t	log_mtx;
@@ -96,7 +98,7 @@ long long	get_time_ms(void);
 long long	get_time_us(void);
 long long	ms_to_us(long long ms);
 long long	us_to_ms(long long us);
-void		log_action(t_simulation *sim, t_coder *coder, char *action);
+void		log_action(t_simulation *sim, t_coder *coder, char *action, short is_done);
 void		precise_sleep(long long duration_ms, t_simulation *sim);
 short		is_finished(t_simulation *sim);
 int			bye_bye(void);
@@ -122,17 +124,18 @@ void		sync_threads(t_simulation *sim);
 void		wait_dongle_ready(t_dongle *d, t_simulation *sim);
 long long	compute_deadline(t_coder *coder, t_simulation *sim);
 void		fifo_register(t_dongle *d, int coder_id, t_simulation *sim);
-void		fifo_deregister(t_dongle *d, t_simulation *sim);
+void		fifo_deregister(t_dongle *d, int coder_id, t_simulation *sim);
 void		fifo_wait_turn(t_dongle *d, int my_id, t_code_sim *cs);
-int			fifo_first(t_dongle *d, int my_id,
+int			fifo_first(t_dongle *d, int my_id, t_simulation *sim);
+void		edf_register(t_dongle *d, long long dl, int coder_id,
 				t_simulation *sim);
-void		edf_register(t_dongle *d, long long deadline, t_simulation *sim);
-void		edf_deregister(t_dongle *d, long long deadline, t_simulation *sim);
+void		edf_deregister(t_dongle *d, long long dl, int coder_id,
+				t_simulation *sim);
 void		edf_wait_turn(t_dongle *d, long long my_deadline,
 				t_code_sim *code_sim);
-int			edf_early(t_dongle *d, long long my_deadline,
-				t_simulation *sim);
-void		take_dongle(t_code_sim *cs, t_dongle *d);
+int			edf_early(t_dongle *d, long long my_deadline, t_simulation *sim);
+int			take_dongle(t_code_sim *cs, t_dongle *d);
+int			take_dongle_wait_loop(t_code_sim *cs, t_dongle *d);
 void		compile(t_code_sim *cs);
 void		debug(t_code_sim *code_sim);
 void		refactor(t_code_sim *code_sim);

@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:44 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/13 16:23:24 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/15 18:42:03 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,15 +22,17 @@ int	bye_bye(void)
 	return (1);
 }
 
-void	log_action(t_simulation *sim, t_coder *coder, char *action)
+void	log_action(t_simulation *sim, t_coder *coder, char *action, short is_done)
 {
 	long long	timestamp;
 
-	if (!is_finished(sim))
+	lock_mutex(&sim->log_mtx, sim);
+	if (!is_finished(sim) && !sim->is_done)
 	{
-		lock_mutex(&sim->log_mtx, sim);
-		timestamp = get_time_ms() - us_to_ms(sim->start_time);
+		timestamp = get_time_ms() - us_to_ms(get_start_time(sim));
 		printf("%lld %d %s\n", timestamp, coder->coder_id, action);
-		unlock_mutex(&sim->log_mtx, sim);
+		if (is_done)
+			sim->is_done = 1;
 	}
+	unlock_mutex(&sim->log_mtx, sim);
 }

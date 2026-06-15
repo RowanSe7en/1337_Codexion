@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 20:50:03 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/12 19:09:33 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/15 18:33:42 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,7 +33,7 @@ void	thread_create(pthread_t *coder, void *func, t_code_sim *code_sim)
 	if (result != 0)
 	{
 		lock_mutex(&code_sim->sim->log_mtx, code_sim->sim);
-		printf("Error: %s\n", strerror(result));
+		fprintf(stderr, "Error: pthread_create: %s\n", strerror(result));
 		unlock_mutex(&code_sim->sim->log_mtx, code_sim->sim);
 		freedom(code_sim->sim, 1);
 	}
@@ -47,7 +47,8 @@ void	watcher_thread_create(pthread_t *wt, void *func, t_simulation *sim)
 	if (result != 0)
 	{
 		lock_mutex(&sim->log_mtx, sim);
-		printf("Error: %s\n", strerror(result));
+		fprintf(stderr, "Error: pthread_create (watcher): %s\n",
+			strerror(result));
 		unlock_mutex(&sim->log_mtx, sim);
 		freedom(sim, 1);
 	}
@@ -61,7 +62,7 @@ void	thread_join(pthread_t *thread, t_simulation *sim)
 	if (result != 0)
 	{
 		lock_mutex(&sim->log_mtx, sim);
-		printf("Error: %s\n", strerror(result));
+		fprintf(stderr, "Error: pthread_join: %s\n", strerror(result));
 		unlock_mutex(&sim->log_mtx, sim);
 		freedom(sim, 1);
 	}

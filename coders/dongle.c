@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/13 19:35:28 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/15 18:38:20 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,7 +35,7 @@ int	dongle_is_ready(t_dongle *d, long long cooldown, t_simulation *sim)
 	return (elapsed >= cooldown);
 }
 
-void	take_dongle_wait_loop(t_code_sim *cs, t_dongle *d)
+int	take_dongle_wait_loop(t_code_sim *cs, t_dongle *d)
 {
 	t_simulation	*sim;
 
@@ -46,13 +46,14 @@ void	take_dongle_wait_loop(t_code_sim *cs, t_dongle *d)
 		if (is_finished(sim))
 		{
 			unlock_mutex(&d->dongle_mtx, sim);
-			return ;
+			return (0);
 		}
 		if (dongle_is_ready(d, ms_to_us(sim->args.dongle_cooldown), sim))
 			break ;
 		unlock_mutex(&d->dongle_mtx, sim);
 		precise_sleep(1, sim);
 	}
+	return (1);
 }
 
 long long	handle_scheduler(t_code_sim *cs, t_dongle *d)
@@ -67,7 +68,7 @@ long long	handle_scheduler(t_code_sim *cs, t_dongle *d)
 	if (sim->is_edf)
 	{
 		deadline = compute_deadline(coder, sim);
-		edf_register(d, deadline, sim);
+		edf_register(d, deadline, coder->coder_id, sim);
 		edf_wait_turn(d, deadline, cs);
 	}
 	else
@@ -78,29 +79,38 @@ long long	handle_scheduler(t_code_sim *cs, t_dongle *d)
 	return (deadline);
 }
 
-void	take_dongle(t_code_sim *cs, t_dongle *d)
+int	take_dongle(t_code_sim *cs, t_dongle *d)
 {
 	t_simulation	*sim;
 	t_coder			*coder;
 	long long		deadline;
+	int				acquired;
 
 	sim = cs->sim;
 	coder = cs->coder;
 	wait_dongle_ready(d, sim);
 	if (is_finished(sim))
-		return ;
+		return (0);
 	deadline = handle_scheduler(cs, d);
 	if (is_finished(sim))
-		return ;
-	take_dongle_wait_loop(cs, d);
-	if (sim->is_edf)
-		edf_deregister(d, deadline, sim);
-	else
-		fifo_deregister(d, sim);
-	if (is_finished(sim))
 	{
-		unlock_mutex(&d->dongle_mtx, sim);
-		return ;
+		if (sim->is_edf)
+			edf_deregister(d, deadline, coder->coder_id, sim);
+		else
+			fifo_deregister(d, coder->coder_id, sim);
+		return (0);
 	}
-	log_action(sim, coder, "has taken a dongle");
+	acquired = take_dongle_wait_loop(cs, d);
+	if (sim->is_edf)
+		edf_deregister(d, deadline, coder->coder_id, sim);
+	else
+		fifo_deregister(d, coder->coder_id, sim);
+	if (!acquired || is_finished(sim))
+	{
+		if (acquired)
+			unlock_mutex(&d->dongle_mtx, sim);
+		return (0);
+	}
+	log_action(sim, coder, "has taken a dongle", 0);
+	return (1);
 }

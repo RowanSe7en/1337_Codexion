@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/12 19:14:12 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/15 18:37:55 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,7 @@ short	check_if_coder_burned_out(t_simulation *sim)
 		now = get_time_us();
 		if (now - last_compile_time >= ms_to_us(sim->args.time_to_burnout))
 		{
-			log_action(sim, &sim->coders[i], "burned out");
+			log_action(sim, &sim->coders[i], "burned out", 1);
 			return (1);
 		}
 		i++;

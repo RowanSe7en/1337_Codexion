@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/12 20:30:58 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/15 18:38:42 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,7 @@
 
 void	refactor(t_code_sim *code_sim)
 {
-	log_action(code_sim->sim, code_sim->coder, "is refactoring");
+	log_action(code_sim->sim, code_sim->coder, "is refactoring", 0);
 	precise_sleep(code_sim->sim->args.time_to_refactor, code_sim->sim);
 	if (!is_finished(code_sim->sim))
 		set_compile_count(code_sim->coder, code_sim->sim);
@@ -22,7 +22,7 @@ void	refactor(t_code_sim *code_sim)
 
 void	debug(t_code_sim *code_sim)
 {
-	log_action(code_sim->sim, code_sim->coder, "is debugging");
+	log_action(code_sim->sim, code_sim->coder, "is debugging", 0);
 	precise_sleep(code_sim->sim->args.time_to_debug, code_sim->sim);
 }
 
@@ -30,18 +30,16 @@ void	compile(t_code_sim *cs)
 {
 	long long	now;
 
-	take_dongle(cs, cs->coder->first_dongle);
-	if (is_finished(cs->sim))
+	if (!take_dongle(cs, cs->coder->first_dongle))
 		return ;
 	if (cs->coder->first_dongle != cs->coder->second_dongle)
 	{
-		take_dongle(cs, cs->coder->second_dongle);
-		if (is_finished(cs->sim))
+		if (!take_dongle(cs, cs->coder->second_dongle))
 		{
 			unlock_mutex(&cs->coder->first_dongle->dongle_mtx, cs->sim);
 			return ;
 		}
-		log_action(cs->sim, cs->coder, "is compiling");
+		log_action(cs->sim, cs->coder, "is compiling", 0);
 		now = get_time_us();
 		set_last_compile_time(cs->coder, now, cs->sim);
 		precise_sleep(cs->sim->args.time_to_compile, cs->sim);

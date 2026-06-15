@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/13 16:42:02 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/15 18:15:23 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,7 +18,8 @@ long long	compute_deadline(t_coder *coder, t_simulation *sim)
 		+ ms_to_us(sim->args.time_to_burnout) - get_start_time(sim));
 }
 
-void	edf_register(t_dongle *d, long long deadline, t_simulation *sim)
+void	edf_register(t_dongle *d, long long deadline,
+			int coder_id, t_simulation *sim)
 {
 	int	i;
 
@@ -26,9 +27,10 @@ void	edf_register(t_dongle *d, long long deadline, t_simulation *sim)
 	i = 0;
 	while (i < 2)
 	{
-		if (d->scheduler.order[i] == 0)
+		if (d->scheduler.deadlines[i] == 0)
 		{
-			d->scheduler.order[i] = deadline;
+			d->scheduler.deadlines[i] = deadline;
+			d->scheduler.coder_ids[i] = coder_id;
 			break ;
 		}
 		i++;
@@ -36,7 +38,8 @@ void	edf_register(t_dongle *d, long long deadline, t_simulation *sim)
 	unlock_mutex(&d->scheduler.order_mtx, sim);
 }
 
-void	edf_deregister(t_dongle *d, long long deadline, t_simulation *sim)
+void	edf_deregister(t_dongle *d, long long deadline,
+			int coder_id, t_simulation *sim)
 {
 	int	i;
 
@@ -44,9 +47,11 @@ void	edf_deregister(t_dongle *d, long long deadline, t_simulation *sim)
 	i = 0;
 	while (i < 2)
 	{
-		if (d->scheduler.order[i] == deadline)
+		if (d->scheduler.deadlines[i] == deadline
+			&& d->scheduler.coder_ids[i] == coder_id)
 		{
-			d->scheduler.order[i] = 0;
+			d->scheduler.deadlines[i] = 0;
+			d->scheduler.coder_ids[i] = 0;
 			break ;
 		}
 		i++;
@@ -54,7 +59,8 @@ void	edf_deregister(t_dongle *d, long long deadline, t_simulation *sim)
 	unlock_mutex(&d->scheduler.order_mtx, sim);
 }
 
-void	edf_wait_turn(t_dongle *d, long long my_deadline, t_code_sim *cs)
+void	edf_wait_turn(t_dongle *d, long long my_deadline,
+			t_code_sim *cs)
 {
 	usleep(1000);
 	while (!is_finished(cs->sim))
@@ -66,7 +72,7 @@ void	edf_wait_turn(t_dongle *d, long long my_deadline, t_code_sim *cs)
 }
 
 int	edf_early(t_dongle *d, long long my_deadline,
-				t_simulation *sim)
+			t_simulation *sim)
 {
 	int			i;
 	long long	val;
@@ -75,7 +81,7 @@ int	edf_early(t_dongle *d, long long my_deadline,
 	i = 0;
 	while (i < 2)
 	{
-		val = d->scheduler.order[i];
+		val = d->scheduler.deadlines[i];
 		if (val != 0 && val < my_deadline)
 		{
 			unlock_mutex(&d->scheduler.order_mtx, sim);

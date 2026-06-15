@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/12 19:06:17 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/12 20:39:57 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/15 18:40:02 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,8 +32,10 @@ void	init_dongles(t_simulation *sim, int size)
 		initiate_mutex(&sim->dongles[i].dongle_mtx, sim);
 		initiate_mutex(&sim->dongles[i].used_time_mtx, sim);
 		initiate_mutex(&sim->dongles[i].scheduler.order_mtx, sim);
-		sim->dongles[i].scheduler.order[0] = 0;
-		sim->dongles[i].scheduler.order[1] = 0;
+		sim->dongles[i].scheduler.deadlines[0] = 0;
+		sim->dongles[i].scheduler.deadlines[1] = 0;
+		sim->dongles[i].scheduler.coder_ids[0] = 0;
+		sim->dongles[i].scheduler.coder_ids[1] = 0;
 		i++;
 	}
 }
@@ -66,6 +68,7 @@ void	setup_sim(t_simulation *sim, t_arguments data, int size)
 {
 	sim->args = data;
 	sim->is_finished = 0;
+	sim->is_done = 0;
 	sim->is_all_ready = 0;
 	sim->is_edf = 0;
 	if (strcmp(sim->args.scheduler, "edf") == 0)
