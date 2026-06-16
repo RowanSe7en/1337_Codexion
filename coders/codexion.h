@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/15 18:39:14 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/16 18:52:49 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,8 +39,7 @@ typedef struct s_arguments
 
 typedef struct s_scheduler
 {
-	long long		deadlines[2];
-	int				coder_ids[2];
+	long long		order[2];
 	pthread_mutex_t	order_mtx;
 }	t_scheduler;
 
@@ -90,9 +89,6 @@ typedef struct s_code_sim
 
 t_arguments	parser(int ac, char **av);
 int			ft_atoi(const char *nptr);
-size_t		ft_strlen(const char *s);
-short		ft_isdigit(char d);
-short		ft_issign(char s);
 short		dig_sign_checker(char *str);
 long long	get_time_ms(void);
 long long	get_time_us(void);
@@ -127,10 +123,8 @@ void		fifo_register(t_dongle *d, int coder_id, t_simulation *sim);
 void		fifo_deregister(t_dongle *d, int coder_id, t_simulation *sim);
 void		fifo_wait_turn(t_dongle *d, int my_id, t_code_sim *cs);
 int			fifo_first(t_dongle *d, int my_id, t_simulation *sim);
-void		edf_register(t_dongle *d, long long dl, int coder_id,
-				t_simulation *sim);
-void		edf_deregister(t_dongle *d, long long dl, int coder_id,
-				t_simulation *sim);
+void		edf_register(t_dongle *d, long long dl, t_simulation *sim);
+void		edf_deregister(t_dongle *d, long long dl, t_simulation *sim);
 void		edf_wait_turn(t_dongle *d, long long my_deadline,
 				t_code_sim *code_sim);
 int			edf_early(t_dongle *d, long long my_deadline, t_simulation *sim);

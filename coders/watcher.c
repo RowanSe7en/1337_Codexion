@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/15 18:37:55 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/16 18:34:24 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -71,7 +71,7 @@ void	*the_watcher(void *arg)
 		if (!is_finished(sim))
 		{
 			check_if_all_compiles_done(sim);
-			usleep(100);
+			usleep(500);
 		}
 	}
 	return (NULL);

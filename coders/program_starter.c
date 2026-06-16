@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/12 19:15:06 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/16 18:08:18 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,8 +25,8 @@ short	is_finished(t_simulation *sim)
 void	program_starter(t_simulation *sim)
 {
 	int			num_of_coders;
-	t_code_sim	*codes_sims;
 	int			i;
+	t_code_sim	*codes_sims;
 
 	num_of_coders = sim->args.number_of_coders;
 	codes_sims = malloc(sizeof(t_code_sim) * num_of_coders);

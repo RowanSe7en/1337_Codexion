@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:33 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/13 19:07:25 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/16 18:11:36 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,15 +14,6 @@
 
 int	str_parser(char *str)
 {
-	int	i;
-
-	i = 0;
-	while (str[i])
-	{
-		if (!(str[i] > 'z' || str[i] < 'a') && !(str[i] > 'Z' || str[i] < 'A'))
-			return (1);
-		i++;
-	}
 	if (strcmp(str, "fifo") != 0 && strcmp(str, "edf") != 0)
 	{
 		printf("No scheduler allowed, other than fifo or edf\n");
@@ -47,7 +38,7 @@ int	int_parser(int ac, char **av)
 	return (0);
 }
 
-int	check_overflow(int ac, char **av, t_arguments *arguments)
+int	check_overflow(int ac, char **av)
 {
 	int	i;
 
@@ -57,7 +48,6 @@ int	check_overflow(int ac, char **av, t_arguments *arguments)
 		if (ft_atoi(av[i]) < 0)
 		{
 			printf("Integer overflow or Negative number: %s\n", av[i]);
-			arguments->valid = 0;
 			return (1);
 		}
 		i++;
@@ -69,7 +59,6 @@ t_arguments	fill_arguments(int ac, char **av)
 {
 	t_arguments	arguments;
 
-	arguments.valid = 0;
 	arguments.number_of_coders = ft_atoi(av[1]);
 	if (arguments.number_of_coders <= 0)
 	{
@@ -82,7 +71,7 @@ t_arguments	fill_arguments(int ac, char **av)
 	arguments.time_to_refactor = ft_atoi(av[5]);
 	arguments.number_of_compiles_required = ft_atoi(av[6]);
 	arguments.dongle_cooldown = ft_atoi(av[7]);
-	if (check_overflow(ac, av, &arguments))
+	if (check_overflow(ac, av))
 		return (arguments);
 	arguments.scheduler = av[8];
 	arguments.valid = 1;

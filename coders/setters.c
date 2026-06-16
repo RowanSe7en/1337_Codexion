@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/12 19:11:43 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/12 19:15:14 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/16 18:11:03 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,8 +48,7 @@ void	set_coder_times_and_ready(t_simulation *sim, int num)
 	while (i < num)
 	{
 		set_last_compile_time(sim->codes_sims[i].coder,
-			get_start_time(sim->codes_sims[i].sim),
-			sim->codes_sims[i].sim);
+			get_start_time(sim), sim);
 		i++;
 	}
 	lock_mutex(&sim->is_ready_mtx, sim);

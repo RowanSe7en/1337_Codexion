@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 20:50:03 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/15 18:33:42 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/16 18:13:48 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -71,5 +71,5 @@ void	thread_join(pthread_t *thread, t_simulation *sim)
 void	sync_threads(t_simulation *sim)
 {
 	while (!get_ready(sim))
-		usleep(1000);
+		usleep(500);
 }

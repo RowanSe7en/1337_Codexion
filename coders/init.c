@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/12 19:06:17 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/15 18:40:02 by brouane          ###   ########.fr       */
+/*   Updated: 2026/06/16 18:40:34 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,10 +32,8 @@ void	init_dongles(t_simulation *sim, int size)
 		initiate_mutex(&sim->dongles[i].dongle_mtx, sim);
 		initiate_mutex(&sim->dongles[i].used_time_mtx, sim);
 		initiate_mutex(&sim->dongles[i].scheduler.order_mtx, sim);
-		sim->dongles[i].scheduler.deadlines[0] = 0;
-		sim->dongles[i].scheduler.deadlines[1] = 0;
-		sim->dongles[i].scheduler.coder_ids[0] = 0;
-		sim->dongles[i].scheduler.coder_ids[1] = 0;
+		sim->dongles[i].scheduler.order[0] = 0;
+		sim->dongles[i].scheduler.order[1] = 0;
 		i++;
 	}
 }

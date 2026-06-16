@@ -580,7 +580,7 @@ After taking the dongle, the coder removes itself by shifting the remaining entr
 
 ### EDF — Earliest Deadline First
 
-**Theory:** When multiple coders compete for a dongle, the one whose burnout deadline is soonest gets priority. This minimizes the probability of any coder running out of time, at the cost of potentially delaying coders with comfortable deadlines.
+**Theory:** When multiple coders compete for a dongle, the one whose burnout deadline is soonest gets priority. This minimizes the probability of any coder running out of time, at the cost of potentially delaying coders with comfortable order.
 
 **Deadline computation (`compute_deadline`):**
 
@@ -621,7 +621,7 @@ int edf_early(t_dongle *d, long long my_deadline, t_simulation *sim)
 }
 ```
 
-A coder may proceed when no entry in `order[]` is strictly less than its own deadline. If two coders have equal deadlines (an edge case noted in the spec), both pass `edf_early()` simultaneously — they then race for `dongle_mtx` in Phase 3, and the OS thread scheduler breaks the tie non-deterministically. This is correct: the spec only requires deterministic tiebreaking when deadlines are exactly equal at the microsecond level, which is rare in practice.
+A coder may proceed when no entry in `order[]` is strictly less than its own deadline. If two coders have equal order (an edge case noted in the spec), both pass `edf_early()` simultaneously — they then race for `dongle_mtx` in Phase 3, and the OS thread scheduler breaks the tie non-deterministically. This is correct: the spec only requires deterministic tiebreaking when order are exactly equal at the microsecond level, which is rare in practice.
 
 **Deregistration (`edf_deregister`):**
 
@@ -651,7 +651,7 @@ Unlike FIFO, EDF deregistration does not need to shift: since both slots are che
 |---|---|---|
 | Priority criterion | Arrival time | Urgency (deadline proximity) |
 | Starvation risk | Very low (bounded wait by construction) | Low (coder with latest deadline still served after urgent ones) |
-| Recommended for | Coders with similar burnout budgets | Coders with heterogeneous or tight deadlines |
+| Recommended for | Coders with similar burnout budgets | Coders with heterogeneous or tight order |
 | Scheduler overhead | O(1) per check | O(2) per check (scan both slots) |
 | Ties | Not possible (IDs are unique) | Resolved non-deterministically via mutex race |
 | Implementation files | `fifo.c` | `edf.c` |
@@ -1171,7 +1171,7 @@ This is accurate only if B already holds both of its dongles and is actively com
 wait_A ≥ remaining_compile_C + cooldown_C + remaining_compile_B + cooldown_B
 ```
 
-This chain does not terminate at depth two. C may in turn be waiting on D, and so on. In a ring of N coders with tight timing parameters, the full dependency chain can stretch across multiple coders before reaching one that is genuinely idle and actively compiling. A naïve EDF implementation that ignores this chain will compute deadlines that appear safe but are not: a coder may be granted priority on a dongle and still burn out because the transitive delay was never accounted for.
+This chain does not terminate at depth two. C may in turn be waiting on D, and so on. In a ring of N coders with tight timing parameters, the full dependency chain can stretch across multiple coders before reaching one that is genuinely idle and actively compiling. A naïve EDF implementation that ignores this chain will compute order that appear safe but are not: a coder may be granted priority on a dongle and still burn out because the transitive delay was never accounted for.
 
 ### The Remaining-Compile Distinction
 
@@ -1200,7 +1200,7 @@ void edf_wait_turn(t_dongle *d, long long my_deadline, t_code_sim *cs)
 }
 ```
 
-The 5 ms initial yield is not arbitrary. It represents the minimum time needed for all competing coders in the relevant neighbourhood to have registered their own deadlines in the dongle's `order[]` array. Without it, a coder could call `edf_early()` before its neighbour has called `edf_register()`, find the queue apparently empty, conclude it has the earliest deadline, and proceed — only to discover the neighbour registered a more urgent deadline a few microseconds later. The initial sleep eliminates this registration race by ensuring the priority comparison in `edf_early()` always sees a fully populated waiting room.
+The 5 ms initial yield is not arbitrary. It represents the minimum time needed for all competing coders in the relevant neighbourhood to have registered their own order in the dongle's `order[]` array. Without it, a coder could call `edf_early()` before its neighbour has called `edf_register()`, find the queue apparently empty, conclude it has the earliest deadline, and proceed — only to discover the neighbour registered a more urgent deadline a few microseconds later. The initial sleep eliminates this registration race by ensuring the priority comparison in `edf_early()` always sees a fully populated waiting room.
 
 The 1 ms re-check interval inside the loop is the polling granularity. Combined with the 100 µs watcher polling interval and the sub-millisecond OS wakeup jitter on typical Linux systems, this gives the EDF logic enough temporal resolution to detect priority changes within the 10 ms burnout detection window required by the specification.
 
