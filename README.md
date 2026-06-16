@@ -293,6 +293,7 @@ typedef struct s_simulation
     t_code_sim *codes_sims;         // heap array — thread argument bundles
     long long   start_time;         // set once before threads unblock; µs epoch
     short       is_finished;        // 0 = running, 1 = stop signal
+    short       is_done;            // prevents duplicate final-state logging
     short       is_all_ready;       // 0 = threads not yet released, 1 = go
     short       is_edf;             // cached boolean: strcmp("edf") == 0
     pthread_mutex_t log_mtx;        // serializes all printf calls
@@ -897,17 +898,20 @@ Total mutex count: `N × 4 + 4` (where N is `number_of_coders`).
 ## Serialized Logging — Race-Free Output
 
 ```c
-void log_action(t_simulation *sim, t_coder *coder, char *action)
+void log_action(t_simulation *sim, t_coder *coder,
+                char *action, short is_done)
 {
     long long timestamp;
 
-    if (!is_finished(sim))               // pre-check (outside lock — acceptable false positive)
+    lock_mutex(&sim->log_mtx, sim);
+    if (!is_finished(sim) && !sim->is_done)
     {
-        lock_mutex(&sim->log_mtx, sim);
-        timestamp = get_time_ms() - us_to_ms(sim->start_time);
+        timestamp = get_time_ms() - us_to_ms(get_start_time(sim));
         printf("%lld %d %s\n", timestamp, coder->coder_id, action);
-        unlock_mutex(&sim->log_mtx, sim);
+        if (is_done)
+            sim->is_done = 1;
     }
+    unlock_mutex(&sim->log_mtx, sim);
 }
 ```
 
