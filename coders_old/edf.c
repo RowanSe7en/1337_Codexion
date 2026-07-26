@@ -54,6 +54,18 @@ void	edf_deregister(t_dongle *d, long long deadline, t_simulation *sim)
 	unlock_mutex(&d->scheduler.order_mtx, sim);
 }
 
+void	edf_wait_turn(t_dongle *d, long long my_deadline,
+			t_code_sim *cs)
+{
+	usleep(2000);
+	while (!is_finished(cs->sim))
+	{
+		if (edf_early(d, my_deadline, cs->sim))
+			return ;
+		usleep(500);
+	}
+}
+
 int	edf_early(t_dongle *d, long long my_deadline,
 			t_simulation *sim)
 {

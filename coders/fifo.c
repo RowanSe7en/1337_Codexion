@@ -43,17 +43,6 @@ void	fifo_deregister(t_dongle *d, int coder_id, t_simulation *sim)
 	unlock_mutex(&d->scheduler.order_mtx, sim);
 }
 
-void	fifo_wait_turn(t_dongle *d, int my_id, t_code_sim *cs)
-{
-	usleep(2000);
-	while (!is_finished(cs->sim))
-	{
-		if (fifo_first(d, my_id, cs->sim))
-			return ;
-		usleep(500);
-	}
-}
-
 int	fifo_first(t_dongle *d, int my_id,
 			t_simulation *sim)
 {

@@ -1,24 +1,18 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   edf.c                                              :+:      :+:    :+:   */
+/*   fifo.c                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/16 19:53:42 by brouane          ###   ########.fr       */
+/*   Created: 2026/06/12 18:42:49 by brouane           #+#    #+#             */
+/*   Updated: 2026/06/16 19:53:52 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-long long	compute_deadline(t_coder *coder, t_simulation *sim)
-{
-	return (get_last_compile_time(coder, sim)
-		+ ms_to_us(sim->args.time_to_burnout) - get_start_time(sim));
-}
-
-void	edf_register(t_dongle *d, long long deadline, t_simulation *sim)
+void	fifo_register(t_dongle *d, int coder_id, t_simulation *sim)
 {
 	int	i;
 
@@ -28,7 +22,7 @@ void	edf_register(t_dongle *d, long long deadline, t_simulation *sim)
 	{
 		if (d->scheduler.order[i] == 0)
 		{
-			d->scheduler.order[i] = deadline;
+			d->scheduler.order[i] = coder_id;
 			break ;
 		}
 		i++;
@@ -36,41 +30,41 @@ void	edf_register(t_dongle *d, long long deadline, t_simulation *sim)
 	unlock_mutex(&d->scheduler.order_mtx, sim);
 }
 
-void	edf_deregister(t_dongle *d, long long deadline, t_simulation *sim)
+void	fifo_deregister(t_dongle *d, int coder_id, t_simulation *sim)
 {
-	int	i;
-
 	lock_mutex(&d->scheduler.order_mtx, sim);
-	i = 0;
-	while (i < 2)
+	if (d->scheduler.order[0] == coder_id)
 	{
-		if (d->scheduler.order[i] == deadline)
-		{
-			d->scheduler.order[i] = 0;
-			break ;
-		}
-		i++;
+		d->scheduler.order[0] = d->scheduler.order[1];
+		d->scheduler.order[1] = 0;
 	}
+	else if (d->scheduler.order[1] == coder_id)
+		d->scheduler.order[1] = 0;
 	unlock_mutex(&d->scheduler.order_mtx, sim);
 }
 
-int	edf_early(t_dongle *d, long long my_deadline,
+void	fifo_wait_turn(t_dongle *d, int my_id, t_code_sim *cs)
+{
+	usleep(2000);
+	while (!is_finished(cs->sim))
+	{
+		if (fifo_first(d, my_id, cs->sim))
+			return ;
+		usleep(500);
+	}
+}
+
+int	fifo_first(t_dongle *d, int my_id,
 			t_simulation *sim)
 {
-	int			i;
-	long long	val;
+	int	val;
 
 	lock_mutex(&d->scheduler.order_mtx, sim);
-	i = 0;
-	while (i < 2)
+	val = d->scheduler.order[0];
+	if (val != my_id)
 	{
-		val = d->scheduler.order[i];
-		if (val != 0 && val < my_deadline)
-		{
-			unlock_mutex(&d->scheduler.order_mtx, sim);
-			return (0);
-		}
-		i++;
+		unlock_mutex(&d->scheduler.order_mtx, sim);
+		return (0);
 	}
 	unlock_mutex(&d->scheduler.order_mtx, sim);
 	return (1);

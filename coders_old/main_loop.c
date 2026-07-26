@@ -30,18 +30,24 @@ void	compile(t_code_sim *cs)
 {
 	long long	now;
 
-	if (cs->coder->first_dongle == cs->coder->second_dongle)
+	if (!take_dongle(cs, cs->coder->first_dongle))
 		return ;
-	if (!take_dongle_pair(cs))
-		return ;
-	log_action(cs->sim, cs->coder, "is compiling", 0);
-	now = get_time_us();
-	set_last_compile_time(cs->coder, now, cs->sim);
-	precise_sleep(cs->sim->args.time_to_compile, cs->sim);
-	now = get_time_us();
-	set_last_used_time(cs->coder->first_dongle, now, cs->sim);
-	set_last_used_time(cs->coder->second_dongle, now, cs->sim);
-	unlock_mutex(&cs->coder->second_dongle->dongle_mtx, cs->sim);
+	if (cs->coder->first_dongle != cs->coder->second_dongle)
+	{
+		if (!take_dongle(cs, cs->coder->second_dongle))
+		{
+			unlock_mutex(&cs->coder->first_dongle->dongle_mtx, cs->sim);
+			return ;
+		}
+		log_action(cs->sim, cs->coder, "is compiling", 0);
+		now = get_time_us();
+		set_last_compile_time(cs->coder, now, cs->sim);
+		precise_sleep(cs->sim->args.time_to_compile, cs->sim);
+		now = get_time_us();
+		set_last_used_time(cs->coder->first_dongle, now, cs->sim);
+		set_last_used_time(cs->coder->second_dongle, now, cs->sim);
+		unlock_mutex(&cs->coder->second_dongle->dongle_mtx, cs->sim);
+	}
 	unlock_mutex(&cs->coder->first_dongle->dongle_mtx, cs->sim);
 }
 

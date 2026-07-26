@@ -1208,27 +1208,178 @@ The 5 ms initial yield is not arbitrary. It represents the minimum time needed f
 
 The 1 ms re-check interval inside the loop is the polling granularity. Combined with the 100 µs watcher polling interval and the sub-millisecond OS wakeup jitter on typical Linux systems, this gives the EDF logic enough temporal resolution to detect priority changes within the 10 ms burnout detection window required by the specification.
 
-### Worst-Case Wait Estimation
+## Worst-Case Wait Estimation
 
-The full worst-case wait time for a coder A competing under EDF, expressed as a sum over the dependency chain, takes the following form:
+### Why `time_to_burnout` needs a margin
+
+`check_if_coder_burned_out()` in `watcher.c` measures elapsed time from the
+**start** of a coder's last compile, not from its end:
+
+​```c
+last_compile_time = get_last_compile_time(&sim->coders[i], sim);
+now = get_time_us();
+if (now - last_compile_time >= ms_to_us(sim->args.time_to_burnout))
+​```
+
+`set_last_compile_time()` is called right when a coder *starts* compiling
+(before `precise_sleep(time_to_compile)`), so the clock is already running
+for the coder's own `time_to_compile` before it even finishes — that
+duration must be accounted for in the budget, on top of however long the
+coder then has to wait for its dongles again.
+
+### Attempt cost
+
+Every dongle acquisition attempt goes through `handle_scheduler()` →
+`edf_wait_turn()`:
+
+​```c
+void edf_wait_turn(...)
+{
+    usleep(2000);   // paid once per attempt, win or lose
+    while (!is_finished(cs->sim))
+    {
+        if (edf_early(d, my_deadline, cs->sim))
+            return ;
+        usleep(500);
+    }
+}
+​```
+
+The `2000us` sleep fires **once per attempt**, regardless of whether that
+attempt wins `[W]` or loses `[L]`. So the correct way to size this cost is
+to count how many separate waiting/attempt events a coder goes through, not
+how many dongles it needs.
+
+### C2's worst-case chain (from the round log)
+```text
+════════════════════════════════════════════════════════════
+ROUND 1
+════════════════════════════════════════════════════════════
+Dongle requests
+────────────────────────────────────────────────────────────
+C1 → D2 [W]
+C2 → D2 [L]
+C3 → D4 [L]
+C4 → D4 [W]
+C5 → D6 [W]
+C6 → D6 [L]
+C7 → D1 [W]
+
+Second dongle requests
+────────────────────────────────────────────────────────────
+C1 → D1 [L]
+C4 → D5 [L]
+C5 → D5 [W]
+C7 → D7 [W]
+
+State after Round 1
+────────────────────────────────────────────────────────────
+C1 WAITING — 1 dongle
+C2 WAITING
+C3 WAITING
+C4 WAITING — 1 dongle
+C5 COMPILING
+C6 WAITING
+C7 COMPILING
+
+════════════════════════════════════════════════════════════
+ROUND 2
+════════════════════════════════════════════════════════════
+Events
+────────────────────────────────────────────────────────────
+C1 → D1 [W]        # C1 gets its second dongle
+C4 → D5 [W]        # C4 gets its second dongle
+C5 → DEBUGGING     # C5 releases D5 and D6
+C6 → D6 [W]        # C6 gets its first dongle
+C7 → DEBUGGING     # C7 releases D1 and D7
+C6 → D7 [W]        # C6 gets its second dongle
+
+State after Round 2
+────────────────────────────────────────────────────────────
+C1 COMPILING
+C2 WAITING
+C3 WAITING
+C4 COMPILING
+C5 DEBUGGING
+C6 COMPILING
+C7 DEBUGGING
+
+════════════════════════════════════════════════════════════
+ROUND 3
+════════════════════════════════════════════════════════════
+Events
+────────────────────────────────────────────────────────────
+C1 → DEBUGGING     # C1 releases D2 and D1
+C2 → D2 [W]        # C2 gets its first dongle
+C3 → D4 [W]        # C3 gets its first dongle
+C4 → DEBUGGING     # C4 releases D4 and D5
+C5 → REFACTORING
+C6 → DEBUGGING     # C6 releases D6 and D7
+C7 → REFACTORING
+C2 → D3 [L]        # C2 loses competition for D3
+C3 → D3 [W]        # C3 gets its second dongle
+
+State after Round 3
+────────────────────────────────────────────────────────────
+C1 DEBUGGING
+C2 WAITING — 1 dongle
+C3 COMPILING
+C4 DEBUGGING
+C5 REFACTORING
+C6 DEBUGGING
+C7 REFACTORING
+```
+
+Out of this log, C2 goes through **three separate waiting/attempt events**
+before it can finally start compiling:
+
+| # | Event                                   | Attempt cost |
+|---|------------------------------------------|--------------|
+| 1 | C2 waits for D2 (loses to C1, Round 1)    | `2000us`     |
+| 2 | C2 waits while C1 waits for D1 (Round 1→2)| `2000us`     |
+| 3 | C2 waits for D3 (loses to C3, Round 3)    | `2000us`     |
+
+Alongside those attempt costs, C2 also has to sit through the full chain of
+other coders occupying the resources it needs:
+
+​```
+c7 compiling
+  → c1 waits for cooldown after c7
+    → c1 compiling
+      → c2 waits for cooldown after c1
+        → c3 compiling
+          → c2 waits for cooldown after c3
+​```
+
+which contributes `3 × time_to_compile` (c7, c1, c3's compile runs) and
+`3 × dongle_cooldown` (the three cooldown windows c1/c2 sit through).
+
+### Formula
 
 ```
-worst_case_wait_A =
-    remaining_compile_C          // C is the coder currently holding B's second dongle
-  + cooldown_C                   // dongle cooldown after C finishes
-  + remaining_compile_B          // B can now finish acquiring and compiling
-  + cooldown_B                   // dongle cooldown after B finishes
-  + time_to_compile_A (dongle 1) // A acquires its first dongle
-  + time_to_compile_A (dongle 2) // A acquires its second dongle (may overlap with above)
+worst_case_waiting_time = 3 × time_to_compile
+                         + 3 × dongle_cooldown
+                         + 3 × 2000us            # C2's own 3 attempts
+
+time_to_burnout > time_to_compile + worst_case_waiting_time
+
+              = time_to_compile
+              + 3 × time_to_compile
+              + 3 × dongle_cooldown
+              + 3 × 2000us
+
+              = 4 × time_to_compile
+              + 3 × dongle_cooldown
+              + 6000us
 ```
 
-The simulation is safe from burnout — for a given set of parameters — if and only if:
+The leading standalone `time_to_compile` term covers the portion of C2's
+*own* last compile that the burnout clock is already counting against it
+(since the clock starts at the beginning of that compile, not the end);
+everything after that is the worst-case time C2 legitimately spends
+locked out of both dongles before it can compile again.
 
-```
-time_to_burnout > worst_case_wait_A
-```
-
-where `worst_case_wait_A` is computed along the longest dependency chain reachable from A given the current scheduler state. Because the ring has N coders and each dongle is shared by exactly two neighbours, the maximum chain depth is bounded by N − 1. In practice, for small N (the common case) and reasonable timing parameters, the chain rarely exceeds depth 2.
+---
 
 ### Design Trade-offs
 

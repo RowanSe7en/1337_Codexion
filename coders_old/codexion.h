@@ -117,22 +117,19 @@ void		set_last_used_time(t_dongle *d, long long time, t_simulation *s);
 void		set_finished(t_simulation *sim);
 short		get_ready(t_simulation *sim);
 void		sync_threads(t_simulation *sim);
+void		wait_dongle_ready(t_dongle *d, t_simulation *sim);
 long long	compute_deadline(t_coder *coder, t_simulation *sim);
 void		fifo_register(t_dongle *d, int coder_id, t_simulation *sim);
 void		fifo_deregister(t_dongle *d, int coder_id, t_simulation *sim);
+void		fifo_wait_turn(t_dongle *d, int my_id, t_code_sim *cs);
 int			fifo_first(t_dongle *d, int my_id, t_simulation *sim);
 void		edf_register(t_dongle *d, long long dl, t_simulation *sim);
 void		edf_deregister(t_dongle *d, long long dl, t_simulation *sim);
+void		edf_wait_turn(t_dongle *d, long long my_deadline,
+				t_code_sim *code_sim);
 int			edf_early(t_dongle *d, long long my_deadline, t_simulation *sim);
-long long	get_dongle_key(t_code_sim *cs);
-void		register_pair(t_code_sim *cs, t_dongle *d1, t_dongle *d2,
-				long long key);
-void		deregister_pair(t_code_sim *cs, t_dongle *d1, t_dongle *d2,
-				long long key);
-int			turn_ready_pair(t_code_sim *cs, t_dongle *d1, t_dongle *d2,
-				long long key);
-int			try_grab_pair(t_code_sim *cs, t_dongle *d1, t_dongle *d2);
-int			take_dongle_pair(t_code_sim *cs);
+int			take_dongle(t_code_sim *cs, t_dongle *d);
+int			take_dongle_wait_loop(t_code_sim *cs, t_dongle *d);
 void		compile(t_code_sim *cs);
 void		debug(t_code_sim *code_sim);
 void		refactor(t_code_sim *code_sim);
