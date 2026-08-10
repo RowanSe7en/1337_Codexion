@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:33 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/16 18:11:36 by brouane          ###   ########.fr       */
+/*   Updated: 2026/08/10 21:07:54 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,6 +70,11 @@ t_arguments	fill_arguments(int ac, char **av)
 	arguments.time_to_debug = ft_atoi(av[4]);
 	arguments.time_to_refactor = ft_atoi(av[5]);
 	arguments.number_of_compiles_required = ft_atoi(av[6]);
+	if (arguments.number_of_compiles_required < 1)
+	{
+		printf("number of compiles required should be more then ZERO\n");
+		return (arguments);
+	}
 	arguments.dongle_cooldown = ft_atoi(av[7]);
 	if (check_overflow(ac, av))
 		return (arguments);
