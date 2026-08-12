@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/29 12:33:44 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/15 18:42:03 by brouane          ###   ########.fr       */
+/*   Updated: 2026/08/10 21:33:22 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,7 +22,9 @@ int	bye_bye(void)
 	return (1);
 }
 
-void	log_action(t_simulation *sim, t_coder *coder, char *action, short is_done)
+void	log_action(
+	t_simulation *sim, t_coder *coder, char *action, short is_done
+	)
 {
 	long long	timestamp;
 

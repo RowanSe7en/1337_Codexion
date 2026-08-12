@@ -44,6 +44,8 @@
 17. [Argument Parsing and Validation](#argument-parsing-and-validation)
 18. [Debugging and Validation — Valgrind, Helgrind, Testing Strategy](#debugging-and-validation--valgrind-helgrind-testing-strategy)
 19. [Resources](#resources)
+20. [Optimized Burnout-Time Analysis in EDF Scheduling](#optimized-burnout-time-analysis-in-edf-scheduling)
+21. [Worst-Case Wait Estimation](#worst-case-wait-estimation)
 
 ---
 
@@ -75,9 +77,9 @@ The simulation ends when either a coder goes `time_to_burnout` milliseconds with
 
 Core engineering challenges:
 
-- **Deadlock prevention** without a global lock (Coffman condition breaking via even/odd dongle assignment).
+- **Deadlock prevention** without a global lock: dongles are acquired as an atomic pair (breaking hold-and-wait), reinforced by even/odd dongle-assignment ordering (breaking circular wait).
 - **Starvation prevention** via two scheduling policies: FIFO arrival-order fairness and EDF (Earliest Deadline First) urgency-based fairness.
-- **Precise burnout detection** within a 10 ms window, enforced by a dedicated monitor thread polling at 100 µs intervals.
+- **Precise burnout detection** within a 10 ms window, enforced by a dedicated monitor thread polling at 500 µs intervals.
 - **Thread-safe state access** through a uniform getter/setter pattern where every shared field is protected by its own dedicated mutex.
 - **Serialized logging** via a single `log_mtx` that prevents any two state messages from interleaving on the same line.
 
@@ -189,9 +191,10 @@ codexion/
     ├── program_starter.c       ← program_starter(): thread spawning, barrier arm, join loop
     ├── thread_manager.c        ← thread_create(), watcher_thread_create(), thread_join(), sync_threads()
     ├── main_loop.c             ← main_loop() (coder thread entry), compile(), debug(), refactor()
-    ├── dongle.c                ← take_dongle(), wait_dongle_ready(), handle_scheduler(), dongle_is_ready()
-    ├── fifo.c                  ← fifo_register(), fifo_deregister(), fifo_wait_turn(), fifo_first()
-    ├── edf.c                   ← edf_register(), edf_deregister(), edf_wait_turn(), edf_early(), compute_deadline()
+    ├── dongle.c                ← dongle_is_ready(), try_grab_pair(), take_dongle_pair()
+    ├── pair_scheduler.c        ← get_dongle_key(), register_pair(), deregister_pair(), turn_ready_pair()
+    ├── fifo.c                  ← fifo_register(), fifo_deregister(), fifo_first()
+    ├── edf.c                   ← edf_register(), edf_deregister(), edf_early(), compute_deadline()
     ├── watcher.c               ← the_watcher(), check_if_coder_burned_out(), check_if_all_compiles_done()
     ├── getters.c               ← Thread-safe read functions for all shared state
     ├── setters.c               ← Thread-safe write functions for all shared state
@@ -306,7 +309,7 @@ typedef struct s_simulation
 
 `t_simulation` is stack-allocated in `main()`. This is intentional: the entire simulation lifetime is bounded by `main()`'s scope, so there is no risk of the struct outliving the program's meaningful execution. Only the three heap-allocated arrays (`coders`, `dongles`, `codes_sims`) require `free()`.
 
-`is_edf` is a `short` computed once from `strcmp(scheduler, "edf")` in `setup_sim()` and then read by every thread in `handle_scheduler()` without a mutex — it is set before threads are spawned and never mutated thereafter, making it safely immutable from the threads' perspective.
+`is_edf` is a `short` computed once from `strcmp(scheduler, "edf")` in `setup_sim()` and then read by every thread in `get_dongle_key()`, `register_pair()`, and `turn_ready_pair()` (`pair_scheduler.c`) without a mutex — it is set before threads are spawned and never mutated thereafter, making it safely immutable from the threads' perspective.
 
 ### `t_code_sim` — Thread Argument Bundle
 
@@ -387,7 +390,7 @@ A deadlock requires four conditions to hold simultaneously:
 
 In a naive dining philosophers implementation, all four hold: each dongle is exclusive, each coder holds one dongle while waiting for the second, dongles cannot be stolen, and in an N-coder ring, every coder can be simultaneously waiting for their right neighbour's dongle while holding their left — forming a perfect circle.
 
-Codexion breaks condition 4 — **circular wait** — by assigning `first_dongle` and `second_dongle` asymmetrically based on coder ID parity.
+Codexion breaks two of these conditions independently. The primary guarantee comes from **hold-and-wait** (condition 2): dongles are acquired as an atomic pair (see [Atomic Pair Acquisition](#atomic-pair-acquisition-in-try_grab_pair) below), so a coder can never end up holding one dongle while blocked on the other. On top of that, Codexion also breaks **circular wait** (condition 4) by assigning `first_dongle` and `second_dongle` asymmetrically based on coder ID parity — a second, independent line of defence that predates the atomic-pair rewrite and remains in place.
 
 ### The Parity Assignment in `init_coders()`
 
@@ -412,102 +415,125 @@ Consider coders 1 and 2 sharing dongle 2:
 
 Both want dongle 2 first — only one can hold it. The other waits before holding *any* dongle. This asymmetry prevents the state where every coder holds exactly one dongle and is waiting for another.
 
+### Atomic Pair Acquisition in `try_grab_pair()`
+
+Asymmetric ordering alone still leaves a gap: if the two dongles are locked one at a time, there's a window between the first lock and the second where a coder is holding one resource while waiting for the other — hold-and-wait, condition 2. `pair_scheduler.c` and `dongle.c` close that gap directly: a coder never locks a dongle mutex until it can lock **both** in the same attempt.
+
+```c
+int	try_grab_pair(t_code_sim *cs, t_dongle *d1, t_dongle *d2)
+{
+    ...
+    if (pthread_mutex_trylock(&d1->dongle_mtx) != 0)
+        return (0);
+    if (!dongle_is_ready(d1, cooldown, sim)
+        || !dongle_is_ready(d2, cooldown, sim))
+    {
+        unlock_mutex(&d1->dongle_mtx, sim);
+        return (0);
+    }
+    if (pthread_mutex_trylock(&d2->dongle_mtx) != 0)
+    {
+        unlock_mutex(&d1->dongle_mtx, sim);
+        return (0);
+    }
+    return (1);
+}
+```
+
+`pthread_mutex_trylock()` never blocks — it either acquires the lock immediately or fails immediately. `try_grab_pair()` uses this to make the pair acquisition all-or-nothing: if it locks `d1` but then can't lock `d2`, it unlocks `d1` again before returning rather than sitting on it. A coder is therefore never observed holding one dongle while stuck waiting on the other, which removes hold-and-wait outright — independent of dongle ordering.
+
+`take_dongle_pair()` in `dongle.c` drives the retry loop around this: register once for both dongles via `register_pair()`, then repeat `turn_ready_pair() && try_grab_pair()` every `500 µs` (`usleep(500)`) until it succeeds or the simulation ends, then `deregister_pair()`. See [Dongle Lifecycle](#dongle-lifecycle--cooldown-ownership-and-the-scheduler-gateway) for the full flow.
+
+Because hold-and-wait can no longer occur, the even/odd ordering above is no longer strictly load-bearing for deadlock-freedom by itself — but it is still in place, so conditions 2 and 4 are both broken at once.
+
 ### The Single-Coder Edge Case
 
 ```c
-// In main_loop():
+// In compile():
+if (cs->coder->first_dongle == cs->coder->second_dongle)
+    return ;
+if (!take_dongle_pair(cs))
+    return ;
+...
+
+// In main_loop(), immediately after the compile() call:
 if (code_sim->coder->first_dongle == code_sim->coder->second_dongle)
     break;
-
-// In compile():
-if (cs->coder->first_dongle != cs->coder->second_dongle)
-{
-    take_dongle(cs, cs->coder->second_dongle);
-    ...
-}
-unlock_mutex(&cs->coder->first_dongle->dongle_mtx, cs->sim);
 ```
 
-When `number_of_coders == 1`, there is only one dongle, and `(i + 1) % size == 0`, so both `first_dongle` and `second_dongle` point to the same dongle. The code detects pointer equality and skips the second `take_dongle()` call entirely. After the single `take_dongle()`, the coder immediately breaks out of `main_loop()`, since compiling with one dongle is impossible per the spec. The simulation exits cleanly.
+When `number_of_coders == 1`, there is only one dongle, and `(i + 1) % size == 0`, so both `first_dongle` and `second_dongle` point to the same dongle. `compile()` detects this up front and returns **without ever calling `take_dongle_pair()`** — deliberately, since `try_grab_pair()` would otherwise trylock the same mutex twice from the same thread and never succeed, spinning uselessly until the simulation ends anyway. `main_loop()` then breaks immediately after that one no-op `compile()` call, so the coder's own thread exits almost instantly.
+
+That does **not** mean the *program* exits immediately, though: `program_starter()` still joins the watcher thread, and the watcher keeps polling every 500 µs. Since this coder's `last_compile_time` was set once at `start_time` and never updates again — it can never actually compile — the watcher reliably reports `"burned out"` after the full `time_to_burnout` window and only then calls `set_finished()`. So `./codexion 1 <time_to_burnout> ...` runs for the whole `time_to_burnout` duration, prints exactly one `"burned out"` line, and never prints `"is compiling"` — it does not return control immediately.
 
 ---
 
 ## Dongle Lifecycle — Cooldown, Ownership, and the Scheduler Gateway
 
-The path from "coder wants a dongle" to "coder holds a dongle" passes through three distinct phases, each implemented by a separate function.
+The path from "coder wants its two dongles" to "coder holds both dongles" is a single atomic-pair operation rather than two sequential per-dongle acquisitions. It's driven by `take_dongle_pair()` in `dongle.c`, with the scheduling-queue mechanics factored out into `pair_scheduler.c`.
 
-### Phase 1 — Cooldown Wait (`wait_dongle_ready()`)
+### Stage 1 — Pair Registration (`register_pair()`)
 
 ```c
-void wait_dongle_ready(t_dongle *d, t_simulation *sim)
+void	register_pair(t_code_sim *cs, t_dongle *d1, t_dongle *d2, long long key)
 {
-    long long cooldown = ms_to_us(sim->args.dongle_cooldown);
-    while (!dongle_is_ready(d, cooldown, sim))
-    {
-        if (is_finished(sim))
-            return;
-        precise_sleep(1, sim);
-    }
+	if (cs->sim->is_edf)
+	{
+		edf_register(d1, key, cs->sim);
+		edf_register(d2, key, cs->sim);
+	}
+	else
+	{
+		fifo_register(d1, (int)key, cs->sim);
+		fifo_register(d2, (int)key, cs->sim);
+	}
 }
 ```
 
-Before registering in the scheduler queue at all, a coder waits for the dongle's cooldown to expire. `dongle_is_ready()` computes `now - get_last_used_time(d)` in microseconds and returns 1 when the elapsed time exceeds `dongle_cooldown`. The 1 ms `precise_sleep()` between checks means the cooldown is honoured within ±1 ms.
+`key` is either the coder's EDF deadline or its FIFO coder ID, computed once by `get_dongle_key()`. Registration is unconditional and immediate: a coder registers on **both** dongles' waiting rooms the moment it starts trying to compile, without first waiting for either cooldown to clear.
 
-This phase runs outside any dongle mutex, so multiple coders can be in the cooldown-wait phase simultaneously without blocking each other.
-
-### Phase 2 — Scheduler Registration and Waiting (`handle_scheduler()`)
+### Stage 2 — Wait-and-Grab Retry Loop (`take_dongle_pair()`)
 
 ```c
-long long handle_scheduler(t_code_sim *cs, t_dongle *d)
+int	take_dongle_pair(t_code_sim *cs)
 {
-    if (sim->is_edf)
-    {
-        deadline = compute_deadline(coder, sim);
-        edf_register(d, deadline, sim);
-        edf_wait_turn(d, deadline, cs);
-    }
-    else
-    {
-        fifo_register(d, coder->coder_id, sim);
-        fifo_wait_turn(d, coder->coder_id, cs);
-    }
-    return deadline;
+	t_dongle	*d1;
+	t_dongle	*d2;
+	long long	key;
+
+	d1 = cs->coder->first_dongle;
+	d2 = cs->coder->second_dongle;
+	key = get_dongle_key(cs);
+	register_pair(cs, d1, d2, key);
+	while (!is_finished(cs->sim))
+	{
+		if (turn_ready_pair(cs, d1, d2, key) && try_grab_pair(cs, d1, d2))
+		{
+			deregister_pair(cs, d1, d2, key);
+			log_action(cs->sim, cs->coder, "has taken a dongle", 0);
+			log_action(cs->sim, cs->coder, "has taken a dongle", 0);
+			return (1);
+		}
+		usleep(500);
+	}
+	deregister_pair(cs, d1, d2, key);
+	return (0);
 }
 ```
 
-After the cooldown, the coder registers its claim in the dongle's `t_scheduler` and then spins in a scheduler-specific wait loop until it is deemed the highest-priority waiter. Only then does it proceed to Phase 3. See the [Scheduling System](#scheduling-system--fifo-vs-edf) section for the detailed mechanics.
+Each retry checks two independent things before a coder is allowed to lock anything:
 
-### Phase 3 — Ownership Acquisition (`take_dongle_wait_loop()`)
+1. **`turn_ready_pair()`** — is this coder the highest-priority waiter on **both** dongles at once? It calls `fifo_first()` (or `edf_early()`) once per dongle and requires both to agree. See [Scheduling System](#scheduling-system--fifo-vs-edf).
+2. **`try_grab_pair()`** — see [Atomic Pair Acquisition](#atomic-pair-acquisition-in-try_grab_pair). This is also where the cooldown check (`dongle_is_ready()`) now lives — there is no separate up-front cooldown-wait phase; a dongle that isn't off cooldown yet just fails this attempt like any other, and the loop retries.
 
-```c
-void take_dongle_wait_loop(t_code_sim *cs, t_dongle *d)
-{
-    while (1)
-    {
-        lock_mutex(&d->dongle_mtx, sim);
-        if (is_finished(sim))
-        {
-            unlock_mutex(&d->dongle_mtx, sim);
-            return;
-        }
-        if (dongle_is_ready(d, ms_to_us(sim->args.dongle_cooldown), sim))
-            break;
-        unlock_mutex(&d->dongle_mtx, sim);
-        precise_sleep(1, sim);
-    }
-    // exits while holding dongle_mtx — caller never unlocks here
-}
-```
+If both pass, ownership of both dongles is acquired within that same call — the mutexes are already locked by the time `try_grab_pair()` returns `1`. The coder then deregisters from both waiting rooms and logs `"has taken a dongle"` twice (once per dongle, matching the example output). If either check fails, the coder sleeps `500 µs` (`usleep(500)`) and retries. If the simulation ends first, `take_dongle_pair()` deregisters and returns `0` without ever having locked a dongle mutex — there is nothing to release, because nothing was ever partially acquired.
 
-After winning the scheduler queue, the coder repeatedly tries to acquire `dongle_mtx`. It does a `dongle_is_ready()` check **inside** the lock. This is a defence-in-depth check: the cooldown may have expired during the scheduler-wait phase, or a concurrent coder may have released and re-locked the dongle between Phase 2 and Phase 3. Once `dongle_is_ready()` returns true while `dongle_mtx` is held, the function returns *while still holding the mutex*. The mutex is not released until the end of the entire compile phase.
-
-After `take_dongle_wait_loop()` returns, `take_dongle()` calls the scheduler's deregister function to remove itself from the waiting room, then logs `"has taken a dongle"`.
+`compile()` calls this once for the pair, instead of calling a per-dongle acquisition function twice — see [Coder Lifecycle](#coder-lifecycle--compile-debug-refactor).
 
 ---
 
 ## Scheduling System — FIFO vs EDF
 
-Both schedulers share the same two-slot `t_scheduler.order[]` array embedded in each dongle. The array holds at most two entries because each dongle sits between exactly two coders, and two coders can never simultaneously be in Phase 3 competition for the same dongle (one holds it, the other waits).
+Both schedulers share the same two-slot `t_scheduler.order[]` array embedded in each dongle. The array holds at most two entries because each dongle sits between exactly two coders, and two coders can never simultaneously hold ownership of the same dongle (one holds it, the other waits).
 
 ### FIFO — First In, First Out
 
@@ -536,30 +562,26 @@ void fifo_register(t_dongle *d, int coder_id, t_simulation *sim)
 
 The first coder to call `fifo_register` occupies slot 0. The second occupies slot 1. Slots are filled, not replaced.
 
-**Wait condition (`fifo_first` / `fifo_wait_turn`):**
+**Wait condition (`fifo_first`):**
 
 ```c
-void fifo_wait_turn(t_dongle *d, int my_id, t_code_sim *cs)
+int	fifo_first(t_dongle *d, int my_id, t_simulation *sim)
 {
-    precise_sleep(5, cs->sim);       // 5 ms initial yield — let the other coder register too
-    while (!is_finished(cs->sim))
-    {
-        if (fifo_first(d, my_id, cs->sim))
-            return;
-        precise_sleep(1, cs->sim);
-    }
-}
+	int	val;
 
-int fifo_first(t_dongle *d, int my_id, t_simulation *sim)
-{
-    lock_mutex(&d->scheduler.order_mtx, sim);
-    val = d->scheduler.order[0];      // slot 0 is the head — only this coder may proceed
-    unlock_mutex(&d->scheduler.order_mtx, sim);
-    return (val == my_id);
+	lock_mutex(&d->scheduler.order_mtx, sim);
+	val = d->scheduler.order[0];      // slot 0 is the head — only this coder may proceed
+	if (val != my_id)
+	{
+		unlock_mutex(&d->scheduler.order_mtx, sim);
+		return (0);
+	}
+	unlock_mutex(&d->scheduler.order_mtx, sim);
+	return (1);
 }
 ```
 
-A coder may proceed only if its ID is in slot 0. The 5 ms initial sleep gives concurrent coders time to register before any checking begins, preventing a race where coder A registers and immediately finds itself "first" before coder B has registered at all.
+A coder may proceed only if its ID is in slot 0. `fifo_first()` itself hasn't changed, but it no longer runs inside its own per-dongle wait loop: `turn_ready_pair()` in `pair_scheduler.c` calls it once per dongle and requires **both** calls to return true before the coder is considered ready, and the actual retrying now happens one level up, in `take_dongle_pair()`'s shared `usleep(500)` loop (see [Dongle Lifecycle](#dongle-lifecycle--cooldown-ownership-and-the-scheduler-gateway)). The old fixed 5 ms initial yield before the first check no longer exists — registration and the first readiness check can now happen back-to-back within the same 500 µs retry cycle.
 
 **Deregistration (`fifo_deregister`):**
 
@@ -600,7 +622,7 @@ The deadline is expressed as **microseconds from simulation start**: `last_compi
 
 Identical structure to FIFO registration, but stores the `deadline` value instead of a `coder_id`. The slot is filled on a first-empty-slot basis.
 
-**Wait condition (`edf_early` / `edf_wait_turn`):**
+**Wait condition (`edf_early`):**
 
 ```c
 int edf_early(t_dongle *d, long long my_deadline, t_simulation *sim)
@@ -622,7 +644,7 @@ int edf_early(t_dongle *d, long long my_deadline, t_simulation *sim)
 }
 ```
 
-A coder may proceed when no entry in `order[]` is strictly less than its own deadline. If two coders have equal order (an edge case noted in the spec), both pass `edf_early()` simultaneously — they then race for `dongle_mtx` in Phase 3, and the OS thread scheduler breaks the tie non-deterministically. This is correct: the spec only requires deterministic tiebreaking when order are exactly equal at the microsecond level, which is rare in practice.
+A coder may proceed when no entry in `order[]` is strictly less than its own deadline. Like `fifo_first()`, this is now called from `turn_ready_pair()` in `pair_scheduler.c` — once per dongle, requiring both calls to agree — with the retry loop living in `take_dongle_pair()` rather than a dedicated `edf_wait_turn()`. If two coders have equal order (an edge case noted in the spec), both pass `edf_early()` on both dongles simultaneously — they then both attempt `try_grab_pair()`, and `pthread_mutex_trylock()` resolves the tie non-deterministically: whichever thread's trylock call runs first wins, and the other's attempt simply fails and retries. This is correct: the spec only requires deterministic tiebreaking when order are exactly equal at the microsecond level, which is rare in practice.
 
 **Deregistration (`edf_deregister`):**
 
@@ -687,16 +709,14 @@ void *main_loop(void *arg)
 
 **compile():**
 
-1. `take_dongle(cs, cs->coder->first_dongle)` — full cooldown + scheduler + ownership cycle for the first dongle.
-2. Check `is_finished()` — the simulation may have ended while acquiring the first dongle. If so, return without touching the second.
-3. `take_dongle(cs, cs->coder->second_dongle)` — same cycle for the second dongle.
-4. Check `is_finished()` again — if true, **release the first dongle** before returning (double-acquisition would deadlock the cleanup).
-5. Log `"is compiling"`, record `last_compile_time = now`.
-6. `precise_sleep(time_to_compile, sim)` — sleep while holding both `dongle_mtx` locks.
-7. Record `last_used_time` on both dongles (starts their cooldown timers).
-8. Unlock second dongle, then first dongle (LIFO release order).
+1. If `first_dongle == second_dongle` (the single-coder edge case), return immediately without touching any dongle — see [The Single-Coder Edge Case](#the-single-coder-edge-case).
+2. `take_dongle_pair(cs)` — atomically registers, waits, and acquires **both** dongles as one operation (see [Dongle Lifecycle](#dongle-lifecycle--cooldown-ownership-and-the-scheduler-gateway)). If the simulation ends before the pair is acquired, this returns `0` and `compile()` returns without having locked anything — there's no partial acquisition to unwind.
+3. Log `"is compiling"`, record `last_compile_time = now`.
+4. `precise_sleep(time_to_compile, sim)` — sleep while holding both `dongle_mtx` locks.
+5. Record `last_used_time` on both dongles (starts their cooldown timers).
+6. Unlock second dongle, then first dongle (LIFO release order).
 
-Note that `last_compile_time` is set at **compile start** (step 5), not compile end. This matches the burnout definition: `time_to_burnout` is the maximum interval between the *start* of one compile and the *start* of the next.
+Note that `last_compile_time` is set at **compile start** (step 3), not compile end. This matches the burnout definition: `time_to_burnout` is the maximum interval between the *start* of one compile and the *start* of the next.
 
 **debug() and refactor():**
 
@@ -743,7 +763,7 @@ void precise_sleep(long long duration_ms, t_simulation *sim)
 
 `precise_sleep()` solves both problems: it wakes every 1 ms to check `is_finished()` and re-measure elapsed time. The worst-case oversleep is 1 ms (one `usleep(1000)` loop), which is within the 10 ms burnout detection budget.
 
-The `usleep(100)` in the watcher's main loop (not `precise_sleep`) is a deliberate choice: the watcher does not need to be abruptly interrupted (it checks `is_finished()` at the top of every iteration), and 100 µs polling is fine-grained enough to detect burnout within the required 10 ms window.
+The `usleep(500)` in the watcher's main loop (not `precise_sleep`) is a deliberate choice: the watcher does not need to be abruptly interrupted (it checks `is_finished()` at the top of every iteration), and 500 µs polling is fine-grained enough to detect burnout within the required 10 ms window.
 
 ---
 
@@ -764,8 +784,10 @@ void *the_watcher(void *arg)
             return NULL;
         }
         if (!is_finished(sim))
+        {
             check_if_all_compiles_done(sim);
-        usleep(100);                          // 100 µs polling interval
+            usleep(500);                       // 500 µs polling interval
+        }
     }
     return NULL;
 }
@@ -790,7 +812,7 @@ short check_if_coder_burned_out(t_simulation *sim)
         now = get_time_us();
         if (now - last_compile_time >= ms_to_us(sim->args.time_to_burnout))
         {
-            log_action(sim, &sim->coders[i], "burned out");
+            log_action(sim, &sim->coders[i], "burned out", 1);
             return 1;
         }
         i++;
@@ -809,11 +831,11 @@ Iterates all coders. If every coder's `compile_count` equals `number_of_compiles
 
 **Timing guarantee:**
 
-- Polling interval: 100 µs (`usleep(100)`)
-- Maximum detection latency: 100 µs (one missed poll) + OS wakeup jitter (typically < 1 ms)
+- Polling interval: 500 µs (`usleep(500)`)
+- Maximum detection latency: 500 µs (one missed poll) + OS wakeup jitter (typically < 1 ms)
 - Required window: 10 ms
 
-The 100 µs interval provides roughly 100× margin against the 10 ms requirement, making timing failures due to polling latency essentially impossible under normal system load.
+The 500 µs interval provides roughly 20× margin against the 10 ms requirement, making timing failures due to polling latency essentially impossible under normal system load.
 
 ---
 
@@ -927,9 +949,14 @@ Three design decisions worth noting:
 
 ## Blocking Cases Handled
 
-### 1. Deadlock — Coffman's Circular Wait
+### 1. Deadlock — Hold-and-Wait and Circular Wait
 
-**Coffman condition broken:** Circular wait. All four conditions cannot hold simultaneously because coders acquire their two dongles in a globally consistent partial order (even-ID coders take the lower-index dongle first, odd-ID coders take the higher-index dongle first). No circular acquisition chain can form. See [Deadlock Prevention](#deadlock-prevention--the-evenodd-dongle-assignment).
+**Coffman conditions broken:** hold-and-wait and circular wait, independently.
+
+- **Hold-and-wait** is broken by acquiring both dongles as an atomic pair: `try_grab_pair()` only locks a dongle mutex when it can lock both in the same attempt (trylock-only, never blocking), so a coder is never observed holding one dongle while stuck waiting on the other.
+- **Circular wait** is additionally broken by a globally consistent partial order: coders acquire their two dongles asymmetrically based on ID parity (even-ID coders take the lower-index dongle first, odd-ID coders take the higher-index dongle first), so no circular acquisition chain can form even in designs that do hold-and-wait.
+
+Either mechanism is independently sufficient to prevent deadlock; Codexion currently has both in place. See [Deadlock Prevention](#deadlock-prevention--the-evenodd-dongle-assignment).
 
 ### 2. Starvation — Indefinite Denial of Dongle Access
 
@@ -943,20 +970,27 @@ Both modes guarantee liveness provided the timing parameters satisfy `time_to_bu
 
 Without initialization, `last_compile_time = 0` and `now - 0 >> time_to_burnout`, causing instant false burnout. Fixed by setting `last_compile_time = start_time` for every coder in `set_coder_times_and_ready()` before `is_all_ready` is set. The watcher cannot check burnouts before `is_all_ready = 1`.
 
-### 4. Premature Termination Leaving Dongle Held
+### 4. Premature Termination Without Leaking a Held Dongle
 
-When the simulation ends mid-`compile()`, the code explicitly checks `is_finished()` after each `take_dongle()` call and releases any held dongles before returning:
+Because dongles are acquired atomically as a pair (see [Atomic Pair Acquisition](#atomic-pair-acquisition-in-try_grab_pair)), there's no window where a coder holds one dongle and is still waiting on the other — so there's nothing partial to clean up if the simulation ends mid-wait. If `is_finished()` becomes true while a coder is inside `take_dongle_pair()`'s retry loop, the loop simply exits, calls `deregister_pair()`, and returns `0` without ever having locked a mutex:
 
 ```c
-// After acquiring second dongle, simulation already ended:
-if (is_finished(cs->sim))
+while (!is_finished(cs->sim))
 {
-    unlock_mutex(&cs->coder->first_dongle->dongle_mtx, cs->sim);
-    return;
+    if (turn_ready_pair(cs, d1, d2, key) && try_grab_pair(cs, d1, d2))
+    {
+        ...
+        return (1);
+    }
+    usleep(500);
 }
+deregister_pair(cs, d1, d2, key);
+return (0);
 ```
 
-Without this release, the exiting thread would hold `dongle_mtx` forever, and `pthread_mutex_destroy()` in `freedom()` would deadlock.
+If the simulation instead ends *while* a coder is already compiling (both dongles held), `precise_sleep(time_to_compile, sim)` returns early on `is_finished()`, but `compile()` still runs its unconditional cleanup afterward — `set_last_used_time()` on both dongles, then `unlock_mutex()` on both — so both dongles are released either way.
+
+Without either of these guarantees, an exiting thread could hold `dongle_mtx` forever, and `pthread_mutex_destroy()` in `freedom()` would deadlock.
 
 ### 5. Dongle Cooldown Race
 
@@ -984,10 +1018,10 @@ All `printf()` calls go through `log_action()`, which holds `log_mtx` for the du
 
 **Spin-wait on `is_all_ready` — startup barrier.** Rather than using `pthread_barrier_t` (not in the allowed function list), Codexion implements a spin barrier: all threads call `sync_threads()` which busy-loops with `usleep(1000)` until `is_all_ready == 1`. The main thread sets `is_all_ready = 1` only after recording `start_time` and initializing all coder `last_compile_time` values. This guarantees a synchronized, race-free simulation start.
 
-**Spin-wait in scheduler queues.** Both `fifo_wait_turn()` and `edf_wait_turn()` spin with `precise_sleep(1, sim)` (1 ms sleep) between priority checks. This is a deliberate design trade-off:
+**Spin-wait for dongle-pair acquisition.** `take_dongle_pair()` spins with a flat `usleep(500)` (500 µs) between attempts, re-checking both `turn_ready_pair()` and `try_grab_pair()` on every iteration. This is a deliberate design trade-off:
 
 - A `pthread_cond_wait`-based solution would require a condition signal from the dongle-releasing coder, adding complexity and coupling between the coder that releases and the coder that receives.
-- A spin-wait is simpler, auditable, and at 1 ms granularity introduces at most 1 ms extra latency per dongle acquisition — acceptable given that `time_to_burnout` is measured in hundreds of milliseconds in typical test cases.
+- A spin-wait is simpler, auditable, and at 500 µs granularity introduces at most 500 µs extra latency per pair-acquisition attempt — acceptable given that `time_to_burnout` is measured in hundreds of milliseconds in typical test cases.
 
 **`pthread_cond_t` — not used.** The spec permits `pthread_cond_t`, but the current implementation achieves all necessary synchronization with plain mutexes and spin-waits. This was a deliberate architectural choice: condition variables require a paired predicate protected by the same mutex, and for the two-slot scheduling queue, a spin-wait is both simpler and equally correct.
 
@@ -997,7 +1031,8 @@ The following table maps each potential race to its guard mechanism:
 
 | Race Scenario | Guard | Location |
 |---|---|---|
-| Two coders acquire same dongle simultaneously | `dongle_mtx` held across entire compile | `take_dongle_wait_loop()`, `compile()` |
+| Two coders acquire same dongle simultaneously | `dongle_mtx` held across entire compile | `try_grab_pair()`, `take_dongle_pair()`, `compile()` |
+| Coder holds one dongle while blocked on the other (hold-and-wait) | Atomic pair acquisition — a mutex is only locked when both can be locked in the same attempt (trylock-only, never blocks) | `try_grab_pair()`, `take_dongle_pair()` |
 | Watcher reads stale `last_compile_time` | `coder->state_mtx` on every read/write | `get_last_compile_time()`, `set_last_compile_time()` |
 | Two threads print output simultaneously | `log_mtx` wraps every `printf` | `log_action()` |
 | Scheduler queue corrupted by concurrent registration | `scheduler.order_mtx` | `fifo_register()`, `edf_register()`, `fifo_first()`, `edf_early()` |
@@ -1055,7 +1090,7 @@ Parsing is layered in `parser.c` and `parser_helper.c`:
 
 **Layer 4 — Overflow detection (`check_overflow` + `ft_atoi`):** The custom `ft_atoi()` detects 32-bit integer overflow during parsing by checking if the accumulated result crosses `INT_MAX` or becomes negative. Overflow returns `-1`, which `check_overflow()` treats as invalid. This prevents silent wrapping of large inputs.
 
-**Layer 5 — Semantic validation (`fill_arguments`):** `number_of_coders` must be `> 0`. Other values have no lower bound (0-ms cooldown and 0-ms burnout are structurally valid, though they will cause immediate burnout in practice).
+**Layer 5 — Semantic validation (`fill_arguments`):** `number_of_coders` must be `> 0`, and `number_of_compiles_required` must be `>= 1` — with `0`, every coder's `compile_count` would already equal the target before the simulation starts, so `check_if_all_compiles_done()` would end the run instantly. The remaining values — `time_to_burnout`, `time_to_compile`, `time_to_debug`, `time_to_refactor`, `dongle_cooldown` — have no lower bound (0 ms is structurally valid for any of them, though a 0 ms `time_to_burnout` will cause immediate burnout in practice).
 
 The `t_arguments.valid` short-circuits the chain: `main()` checks only this flag after `parser()` returns, rather than validating every field independently.
 
@@ -1116,8 +1151,11 @@ The uniform getter/setter pattern and the one-mutex-per-field discipline are spe
 **Edge case — single coder:**
 ```bash
 ./codexion 1 800 200 100 100 3 0 fifo
-# Verify: program exits immediately without any "is compiling" lines
-# (single dongle cannot satisfy two-dongle requirement)
+# Verify: no "is compiling" line ever appears (single dongle cannot satisfy
+# the two-dongle requirement), and the run takes the full ~800ms burnout
+# window before printing exactly one "... 1 burned out" line — the coder's
+# own thread exits almost instantly, but the watcher keeps the program
+# alive until it detects the burnout. It is NOT an immediate exit.
 ```
 
 **Log interleaving check:**
@@ -1158,6 +1196,8 @@ These resources were particularly useful for understanding thread creation, mute
 
 
 ## Optimized Burnout-Time Analysis in EDF Scheduling
+
+> **Note — written before the `pair_scheduler.c` rewrite.** This section and [Worst-Case Wait Estimation](#worst-case-wait-estimation) below analyze the earlier design, where each dongle was acquired one at a time (`take_dongle()` → `handle_scheduler()` → `edf_wait_turn()` / `fifo_wait_turn()`). Since the atomic pair-acquisition rewrite (`pair_scheduler.c`, `try_grab_pair()` — see [Atomic Pair Acquisition](#atomic-pair-acquisition-in-try_grab_pair) and [Dongle Lifecycle](#dongle-lifecycle--cooldown-ownership-and-the-scheduler-gateway)), dongles are acquired together, not sequentially, so the specific mechanics quoted below — the `edf_wait_turn()` function itself, its 5 ms initial yield, the flat `2000us` per-attempt cost, and the round-by-round chain trace — no longer correspond to the current code. The underlying approach, that a coder's worst-case wait depends on the whole chain of coders blocking each other and not just the immediate dongle holder, is still the right way to think about the problem, but the formula needs to be re-derived against `take_dongle_pair()`'s `usleep(500)` retry loop, which has no equivalent initial yield and pays no fixed per-attempt cost. Kept here for reference until that re-derivation is done.
 
 Standard EDF implementations answer only one question: *which waiting coder has the most urgent deadline?* They do not ask a harder but equally important question: *given the current state of the system, is this coder's deadline actually reachable?* This section describes how the EDF implementation in Codexion approaches that second question through a structured analysis of the worst-case wait a coder must survive before it can begin compiling.
 

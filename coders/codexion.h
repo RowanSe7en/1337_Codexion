@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:35 by brouane           #+#    #+#             */
-/*   Updated: 2026/06/16 18:52:49 by brouane          ###   ########.fr       */
+/*   Updated: 2026/08/12 13:18:08 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -94,7 +94,9 @@ long long	get_time_ms(void);
 long long	get_time_us(void);
 long long	ms_to_us(long long ms);
 long long	us_to_ms(long long us);
-void		log_action(t_simulation *sim, t_coder *coder, char *action, short is_done);
+void		log_action(
+				t_simulation *sim, t_coder *coder, char *action, short is_done
+				);
 void		precise_sleep(long long duration_ms, t_simulation *sim);
 short		is_finished(t_simulation *sim);
 int			bye_bye(void);

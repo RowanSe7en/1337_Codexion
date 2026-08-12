@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:52 by brouane           #+#    #+#             */
-/*   Updated: 2026/07/25 00:00:00 by brouane          ###   ########.fr       */
+/*   Updated: 2026/08/12 13:13:17 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,12 +22,6 @@ int	dongle_is_ready(t_dongle *d, long long cooldown, t_simulation *sim)
 	return (elapsed >= cooldown);
 }
 
-/*
-** Grabs both dongles as a single atomic unit: either both mutexes end up
-** locked, or none do. We never block on a lock here (trylock only), so a
-** coder can never end up holding one dongle while stuck waiting on the
-** other: no hold-and-wait, hence no risk of a circular-wait deadlock.
-*/
 int	try_grab_pair(t_code_sim *cs, t_dongle *d1, t_dongle *d2)
 {
 	t_simulation	*sim;
