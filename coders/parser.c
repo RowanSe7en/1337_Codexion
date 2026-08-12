@@ -6,7 +6,7 @@
 /*   By: brouane <brouane@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/19 21:44:33 by brouane           #+#    #+#             */
-/*   Updated: 2026/08/10 21:07:54 by brouane          ###   ########.fr       */
+/*   Updated: 2026/08/12 23:27:50 by brouane          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,6 +59,7 @@ t_arguments	fill_arguments(int ac, char **av)
 {
 	t_arguments	arguments;
 
+	arguments.valid = 0;
 	arguments.number_of_coders = ft_atoi(av[1]);
 	if (arguments.number_of_coders <= 0)
 	{
