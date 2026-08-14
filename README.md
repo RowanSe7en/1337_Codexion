@@ -24,6 +24,12 @@
 
 ---
 
+## ✅ Project grade screenshot
+
+![Project screenshot](marks/mark.png)
+
+---
+
 ## Table of Contents
 
 1. [Description](#description)
