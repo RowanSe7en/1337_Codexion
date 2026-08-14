@@ -15,7 +15,8 @@
 [![42 School](https://img.shields.io/badge/42-brouane-000000?style=for-the-badge&logo=42&logoColor=white)](https://42.fr/)
 [![Threading](https://img.shields.io/badge/Threading-pthreads-blueviolet?style=for-the-badge)](.)
 [![Scheduler](https://img.shields.io/badge/Scheduler-FIFO%20%7C%20EDF-orange?style=for-the-badge)](.)
-[![Status](https://img.shields.io/badge/Status-NA-success?style=for-the-badge)](.)
+[![Status](https://img.shields.io/badge/Status-FINISHED-success?style=for-the-badge)](.)
+[![Score](https://img.shields.io/badge/Score-100%2F100-gold?style=for-the-badge&logo=starship&logoColor=white)](.)
 
 *Master the race for resources before the deadline masters you.*
 
